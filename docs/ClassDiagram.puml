@@ -1,0 +1,85 @@
+@startuml classDiagram
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+title "3.2 Detailed Design: Class Diagram - Uni-Reg-Simulation"
+
+class StudyPlan {
+    + int plan_id
+    + string plan_name
+    + string specialization
+    + int total_hours
+    --
+    + get_all_plans()
+    + create_study_plan()
+}
+
+class Course {
+    + int course_id
+    + string course_code
+    + string title
+    + int credit_hours
+    + int theory_hours
+    + int practical_hours
+    --
+    + get_all_courses_catalog()
+}
+
+class PlanCourse {
+    + int year_level
+    + int semester
+    + string category
+    + string delivery_mode
+    + string custom_title
+    + int custom_credit_hours
+    --
+    + get_courses_by_plan(plan_id)
+    + link_course_to_plan()
+}
+
+class Section {
+    + int section_id
+    + int section_num
+    + string days
+    + time start_time
+    + time end_time
+    + string instructor_name
+    + string room_id
+    + int capacity
+    + boolean is_published
+    --
+    + create_section_service(data)
+    + check_schedule_conflict()
+    + publish_schedule()
+}
+
+class Student {
+    + int student_id
+    + string name
+    + string email
+    + string password
+    + int plan_id
+    --
+    + login_student_service()
+    + create_student_service()
+}
+
+class Vote {
+    + int student_id
+    + int course_id
+    + int section_id
+    --
+    + submit_student_vote_service()
+    + get_student_votes()
+}
+
+' العلاقات بين الأصناف
+StudyPlan "1" *-- "many" PlanCourse : contains
+Course "1" -- "many" PlanCourse : associated with
+Course "1" -- "many" Section : has
+Student "1" -- "many" Vote : casts
+Section "1" -- "0..*" Vote : receives
+Course "1" -- "0..*" Course : has prerequisites
+
+@endum

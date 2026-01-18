@@ -1,0 +1,23 @@
+@startuml voting state
+!theme plain
+title "3.2 Detailed Design: Student Voting State Machine"
+
+[*] --> Idle : User Logged In
+
+Idle --> Prereq_Check : Click "تصويت"\n(getPlanCoursePrereqs)
+
+state Prereq_Check {
+  [*] --> Evaluating
+  Evaluating --> Unauthorized : Failed prereq check\n(Show Alert)
+  Evaluating --> Authorized : Passed prereq check\n(User confirms)
+}
+
+Unauthorized --> Idle : Return to dashboard
+
+Authorized --> Voting : Submit vote\n(submit_student_vote_service)
+
+Voting --> Voted : Database success\n[status = success]
+
+Voted --> Idle : remove_vote_service()\n(Withdraw vote)
+
+@endum

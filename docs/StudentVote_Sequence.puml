@@ -1,0 +1,63 @@
+@startuml StudentVote_Sequence
+!theme plain
+autonumber
+
+actor Student
+participant "StudentDashboard.js" as UI
+participant "api.js" as API_Tool
+participant "app.py (Routes)" as Routes
+participant "services.py" as Service
+database "MySQL" as DB
+
+Student -> UI : Click "تصويت" on Section
+UI -> API_Tool : getPlanCoursePrereqs(planId, courseId)
+API_Tool -> Routes : GET /api/plans/.../prereqs
+Routes -> Service : get_course_prereqs_service()
+Service -> DB : SELECT FROM prerequisites
+DB --> Service : List of Prerequisites
+Service --> Routes : Prereq Data
+Routes --> UI : JSON Data
+
+UI -> UI : Check Prereq Logic (Alert User)
+note over UI: Student confirms they passed the prereq
+
+UI -> API_Tool : submitVote(voteData)
+API_Tool -> Routes : POST /api/student/vote
+Routes -> Service : submit_student_vote_service(data)
+Service -> DB : INSERT INTO vote
+DB --> Service : Success
+Service --> Routes : {"status": "success"}
+Routes --> UI : Success Response
+UI --> Student : Show Confirmation (SweetAlert2)
+@endum
+!theme plain
+autonumber
+
+actor Student
+participant "StudentDashboard.js" as UI
+participant "api.js" as API_Tool
+participant "app.py (Routes)" as Routes
+participant "services.py" as Service
+database "MySQL" as DB
+
+Student -> UI : Click "تصويت" on Section
+UI -> API_Tool : getPlanCoursePrereqs(planId, courseId)
+API_Tool -> Routes : GET /api/plans/.../prereqs
+Routes -> Service : get_course_prereqs_service()
+Service -> DB : SELECT FROM prerequisites
+DB --> Service : List of Prerequisites
+Service --> Routes : Prereq Data
+Routes --> UI : JSON Data
+
+UI -> UI : Check Prereq Logic (Alert User)
+note over UI: Student confirms they passed the prereq
+
+UI -> API_Tool : submitVote(voteData)
+API_Tool -> Routes : POST /api/student/vote
+Routes -> Service : submit_student_vote_service(data)
+Service -> DB : INSERT INTO vote
+DB --> Service : Success
+Service --> Routes : {"status": "success"}
+Routes --> UI : Success Response
+UI --> Student : Show Confirmation (SweetAlert2)
+@endum

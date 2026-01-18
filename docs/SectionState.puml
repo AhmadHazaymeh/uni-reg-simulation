@@ -1,0 +1,25 @@
+@startuml Section state
+!theme plain
+title "3.2 Detailed Design: Section State Machine Diagram"
+
+[*] --> Draft : Staff creates section\n(create_section_service)
+
+state Draft {
+  [*] --> Created
+  Created --> Conflict_Check : validateSchedule()
+  Conflict_Check --> Created : Conflict found
+  Conflict_Check --> Validated : No conflict
+}
+
+Draft --> Published : publish_schedule_service()\n[is_published = 1]
+
+state Published {
+  [*] --> Visible_to_Students
+  Visible_to_Students --> Receiving_Votes : Student casts vote
+}
+
+Published --> Deleted : delete_section_service()
+Draft --> Deleted : delete_section_service()
+
+Deleted --> [*]
+@endum

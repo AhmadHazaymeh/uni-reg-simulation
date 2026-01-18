@@ -1,0 +1,39 @@
+@startuml SystemArchitecture!theme plain
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+title "3.1 System Architecture - Uni-Reg-Simulation (JUST)"
+
+package "UI Layer (Presentation)" #EFF6FF {
+    [LandingPage.js] as LP
+    [Login.js / StudentLogin.js] as Login
+    [StudentDashboard.js] as SD
+    [DataEntryDashboard.js] as DD
+}
+
+package "Business Logic Layer (Application)" #F1F5F9 {
+    [app.py (Flask Routes)] as App
+    [services.py (Business Logic)] as Services
+    [validators.py (Data Validation)] as Validators
+}
+
+package "Data Layer (Persistence)" #FEF3C7 {
+    [database.py (MySQL Connection)] as DB_Conn
+    database "MySQL Database" {
+        [Student / Staff Tables]
+        [Course / Section Tables]
+        [Vote / Plan Tables]
+    }
+}
+
+LP --> Login
+Login --> App : HTTP Request (Axios)
+SD --> App : HTTP Request (Axios)
+DD --> App : HTTP Request (Axios)
+
+App --> Services : Call Function
+Services --> Validators : Check Rules
+Services --> DB_Conn : Query Execution
+DB_Conn --> [MySQL Database] : Persistence
+
+@endum

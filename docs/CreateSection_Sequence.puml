@@ -1,0 +1,34 @@
+@startuml createSection 
+!theme plain
+autonumber
+
+actor Staff
+participant "ScheduleTab.js" as UI
+participant "api.js" as API_Tool
+participant "app.py (Routes)" as Routes
+participant "services.py" as Service
+database "MySQL" as DB
+
+Staff -> UI : Fill Section Data & Click "إضافة"
+UI -> UI : validateSchedule() (Local Check)
+UI -> API_Tool : createSection(payload)
+API_Tool -> Routes : POST /api/sections
+Routes -> Service : create_section_service(data)
+
+activate Service
+Service -> Service : check_schedule_conflict()
+note right: Checks for Room or Instructor conflicts
+
+alt No Conflict
+    Service -> DB : INSERT INTO section
+    DB --> Service : Success
+    Service --> Routes : {"status": "success"}
+else Conflict Found
+    Service --> Routes : {"status": "conflict", "message": "..."}
+end
+deactivate Service
+
+Routes --> API_Tool : JSON Response
+API_Tool --> UI : Update State / Show Alert
+UI --> Staff : Show Success/Conflict Message (SweetAlert2)
+@endum
