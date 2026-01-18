@@ -20,9 +20,13 @@ package "Business Logic Layer (Application)" #F1F5F9 {
 package "Data Layer (Persistence)" #FEF3C7 {
     [database.py (MySQL Connection)] as DB_Conn
     database "MySQL Database" {
-        [Student / Staff Tables]
-        [Course / Section Tables]
-        [Vote / Plan Tables]
+        [Student Table]
+        [ Staff Table]
+        [Course Table ]
+        [Section Table]
+        [Vote Table] 
+         [Plan Table]
+         [prerequisites Table]
     }
 }
 
