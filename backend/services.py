@@ -85,8 +85,6 @@ def login_student_service(student_id, password):
         cursor.close()
         conn.close()
         
-# Study Plans
-# =========================================================
 
 def get_all_plans_service():
     
@@ -148,7 +146,6 @@ def get_all_courses_catalog_service():
 
 
   
-# =========================================================
 def get_courses_by_plan_service(plan_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -272,7 +269,6 @@ def remove_course_from_plan_service(plan_id, course_id):
 
 
 # sections adn Scheduling
-# =========================================================
 
 def create_section_service(data):
     conn = get_db_connection()
@@ -427,7 +423,6 @@ def publish_schedule_service():
 
 
 # Registration st
-# =========================================================
 
 def create_student_service(data):   #sign up
     conn = get_db_connection()

@@ -24,7 +24,7 @@ export const api = {
     getPlanCoursePrereqs: (planId, courseId) => axios.get(`${API_BASE}/plans/${planId}/courses/${courseId}/prereqs`),
     addPlanCoursePrereq: (planId, courseId, data) => axios.post(`${API_BASE}/plans/${planId}/courses/${courseId}/prereqs`, data),
 
-    // Schedule & Sections
+    // Schedule 
     getStudentSchedule: (studentId) => axios.get(`${API_BASE}/student/schedule`, { params: { student_id: studentId } }),
     
     getStaffSchedule: () => axios.get(`${API_BASE}/sections`),
