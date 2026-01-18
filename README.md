@@ -1,4 +1,4 @@
-# Uni-Reg-Simulation: Smart University Registration System
+# Uni-Reg-Simulation:
 
 A comprehensive Full-Stack web application designed to simulate and optimize academic registration processes at Jordan University of Science and Technology (**JUST**). The system acts as an interactive platform that bridges the gap between administrative planning and actual student needs through an intelligent voting and data analysis system.
 
