@@ -144,8 +144,6 @@ def get_all_courses_catalog_service():
 
 
 
-
-  
 def get_courses_by_plan_service(plan_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -539,7 +537,7 @@ def delete_prerequisite_service(plan_id, course_id, prereq_id, req_type):
         query = """
             DELETE FROM prerequisites 
             WHERE plan_id = %s AND course_id = %s AND prereq_id = %s AND req_type = %s
-        """
+            """
         cursor.execute(query, (plan_id, course_id, prereq_id, req_type))
         conn.commit()
         return {"status": "success"}
