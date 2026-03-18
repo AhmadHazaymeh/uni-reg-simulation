@@ -95,7 +95,7 @@ def get_all_plans_service():
         return cursor.fetchall()
     finally:
         cursor.close()
-        conn.close()
+        conn.close() 
 
 
 
