@@ -15,7 +15,7 @@ class CustomJSONProvider(DefaultJSONProvider):
 
 app = Flask(__name__)
 app.json = CustomJSONProvider(app)    
-CORS(app) #fff
+CORS(app) 
 
 
 
