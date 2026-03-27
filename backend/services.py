@@ -543,6 +543,7 @@ def delete_prerequisite_service(plan_id, course_id, prereq_id, req_type):
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+ 
     finally:
         cursor.close()
         conn.close()

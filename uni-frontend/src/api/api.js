@@ -39,5 +39,4 @@ export const api = {
     submitVote: (voteData) => axios.post(`${API_BASE}/student/vote`, voteData),
     getStudentVotes: (studentId) => axios.get(`${API_BASE}/student/${studentId}/votes`),
     removeVote: (voteData) => axios.post(`${API_BASE}/student/vote/remove`, voteData),
-    
 };
