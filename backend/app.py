@@ -220,9 +220,12 @@ def get_all_students():
     return jsonify(services.admin_get_all_students_service())
 
 
-@app.route('/api/admin/staff/<int:staff_id>' , methods = ['DELETE'])
+# هاد الراوت مشان حذف الموظفين (مدخلي البيانات أو رؤساء الأقسام)
+@app.route('/api/staff/<int:staff_id>', methods=['DELETE'])
 def delete_staff(staff_id):
-    return jsonify(services.admin_delete_staff_service(staff_id))
+    # بننادي السيرفس اللي كتبناه قبل شوي
+    result = services.delete_staff_service(staff_id)
+    return jsonify(result)
 
 @app.route('/api/admin/add-staff', methods=['POST'])
 def add_staff():

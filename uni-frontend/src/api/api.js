@@ -52,8 +52,8 @@ export const api = {
     updateStaff: (staffId, data) => axios.put(`${API_BASE}/admin/staff/${staffId}`, data),
     
     // حذف موظف 
-    deleteStaff: (staffId) => axios.delete(`${API_BASE}/admin/staff/${staffId}`),
-
+// وظيفة حذف موظف من الداتابيس
+deleteStaff: (staffId) => axios.delete(`${API_BASE}/staff/${staffId}`),
     
     // جلب قائمة الطلاب لعرضها للأدمن
     getAdminStudents: () => axios.get(`${API_BASE}/admin/students`),

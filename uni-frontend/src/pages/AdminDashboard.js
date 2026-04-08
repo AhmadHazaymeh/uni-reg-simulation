@@ -88,13 +88,30 @@ const getDeptStaff = (role) => {
         } catch (err) { Swal.fire('خطأ', 'فشل تحديث بيانات الطالب', 'error'); }
     };
 
-    const deleteStaff = async (id) => {
-        const confirm = await Swal.fire({ title: 'حذف؟', text: 'سيتم سحب الصلاحية نهائياً', icon: 'warning', showCancelButton: true });
-        if (confirm.isConfirmed) {
-            await api.deleteStaff(id);
-            fetchData();
+    const deleteStaff = async (staffId) => {
+    // بنطلع تنبيه تأكيد قبل الحذف (Swal)
+    const result = await Swal.fire({
+        title: 'متأكد بدك تحذفه؟',
+        text: "هاد الإجراء ما فيه رجعة يا غالي!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'آه، احذفه',
+        cancelButtonText: 'إلغاء'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            // بننادي الـ API اللي ضفناه
+            const res = await api.deleteStaff(staffId); 
+            if (res.data.status === 'success') {
+                Swal.fire('تم الحذف!', 'الموظف طار من السيستم.', 'success');
+                fetchData(); // بنحدث القائمة مشان يختفي من قدامنا
+            }
+        } catch (err) {
+            Swal.fire('خطأ', 'صار مشكلة بالاتصال بالسيرفر', 'error');
         }
-    };
+    }
+};
 
     return (
         <div style={styles.container}>
@@ -109,7 +126,7 @@ const getDeptStaff = (role) => {
                 {/* 1. عرض الأقسام ككروت */}
                 {view === 'depts' && !selectedDept && (
                     <div style={styles.content}>
-                        <h2 style={styles.pageTitle}>الأقسام الأكاديمية (جامعة JUST)</h2>
+                        <h2 style={styles.pageTitle}>الأقسام الأكاديمية جامعة العلوم والتكنولجيا الاردنية</h2>
                         <div style={styles.deptGrid}>
                             {departments.map(dept => (
                                 <div key={dept.dept_id} style={styles.deptCard} onClick={() => setSelectedDept(dept)}>
@@ -132,7 +149,7 @@ const getDeptStaff = (role) => {
                         {/* قسم رئيس القسم HOD */}
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
-                                <h3><UserCog color="#2563eb"/> رئيس القسم (HoD)</h3>
+                                <h3><UserCog color="#2563eb"/> رئيس القسم </h3>
                                 {getDeptStaff('hod').length === 0 && (
                                     <button style={styles.addMiniBtn} onClick={() => { setEditingStaffId(null); setStaffForm({role:'hod', official_id:'', name:'', email:'', password:''}); setShowStaffModal(true); }}><UserPlus size={16}/> تعيين رئيس جديد</button>
                                 )}
@@ -154,7 +171,7 @@ const getDeptStaff = (role) => {
                         {/* قسم مدخلي البيانات Clerks */}
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
-                                <h3><LayoutDashboard color="#10b981"/> مدخلي البيانات (Clerks)</h3>
+                                <h3><LayoutDashboard color="#10b981"/> مدخلي البيانات</h3>
                                 <button style={styles.addMiniBtnGreen} onClick={() => { setEditingStaffId(null); setStaffForm({role:'clerk', official_id:'', name:'', email:'', password:''}); setShowStaffModal(true); }}><UserPlus size={16}/> إضافة مدخل بيانات</button>
                             </div>
                             <table style={styles.table}>

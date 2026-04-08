@@ -705,6 +705,26 @@ def admin_get_all_departments_service():
     finally:
         cursor.close()
         conn.close()
+
+
+def delete_staff_service(staff_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # هون بنفذ أمر الحذف بناءً على الـ ID اللي وصلنا من الفرونت
+        cursor.execute("DELETE FROM staff WHERE staff_id = %s", (staff_id,))
+        conn.commit()
+        
+        # إذا كلشي تمام، بنرجع رسالة نجاح
+        return {"status": "success", "message": "تم حذف الموظف من السيستم بنجاح"}
+    except Exception as e:
+        # إذا صار أي مشكلة (مثلاً الموظف اله روابط ثانية)، بنعمل رول باك
+        conn.rollback()
+        return {"status": "error", "message": f"في مشكلة بالحذف: {str(e)}"}
+    finally:
+        cursor.close()
+        conn.close()
+
         
 
 
