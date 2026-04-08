@@ -11,30 +11,61 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const res = await axios.post('http://127.0.0.1:5000/api/staff/login', { email, password });
-            if (res.data.status === 'success') {
-                localStorage.setItem('token', res.data.token);
-                Swal.fire({
-                    icon: 'success',
-                    title: 'أهلاً بك مجدداً',
-                    text: 'تم تسجيل دخولك بنجاح',
-                    confirmButtonColor: '#2563eb',
-                    timer: 1500
-                });
-                navigate('/data-entry');
+   const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+        const res = await axios.post('http://127.0.0.1:5000/api/staff/login', { 
+            email, 
+            password 
+        });
+
+        if (res.data.status === 'success') {
+            const { token, user } = res.data;
+
+            localStorage.setItem('token', token);
+            localStorage.setItem('role', user.role);
+            localStorage.setItem('dept_id', user.dept_id);
+            localStorage.setItem('user_name', user.name);
+
+            Swal.fire({
+                icon: 'success',
+                title: `أهلاً بك يا ${user.name}`,
+                text: 'تم تسجيل دخولك بنجاح',
+                confirmButtonColor: '#2563eb',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+            // توجيه المستخدم حسب دورهس Role
+            if (user.role === 'admin') {
+                navigate('/admin-dashboard');
+            } else if (user.role === 'hod') {
+                navigate('/hod-dashboard');
             } else {
-                Swal.fire({ icon: 'error', title: 'فشل الدخول', text: res.data.message, confirmButtonColor: '#2563eb' });
+                // للموظف العادي (clerk)
+                navigate('/data-entry');
             }
-        } catch (err) {
-            Swal.fire({ icon: 'error', title: 'خطأ تقني', text: 'تأكد من تشغيل السيرفر (Flask)', confirmButtonColor: '#2563eb' });
-        } finally {
-            setLoading(false);
+
+        } else {
+            Swal.fire({ 
+                icon: 'error', 
+                title: 'فشل الدخول', 
+                text: res.data.message, 
+                confirmButtonColor: '#2563eb' 
+            });
         }
-    };
+    } catch (err) {
+        Swal.fire({ 
+            icon: 'error', 
+            title: 'خطأ تقني', 
+            text: 'تأكد من تشغيل السيرفر (Flask)', 
+            confirmButtonColor: '#2563eb' 
+        });
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div style={styles.container}>

@@ -39,4 +39,39 @@ export const api = {
     submitVote: (voteData) => axios.post(`${API_BASE}/student/vote`, voteData),
     getStudentVotes: (studentId) => axios.get(`${API_BASE}/student/${studentId}/votes`),
     removeVote: (voteData) => axios.post(`${API_BASE}/student/vote/remove`, voteData),
+
+   //admin
+   
+    // جلب قائمة الموظفين
+    getStaff: () => axios.get(`${API_BASE}/admin/staff`),
+    
+    // إضافة موظف جديد (أدمن، رئيس قسم، مدخل بيانات)
+    addStaff: (staffData) => axios.post(`${API_BASE}/admin/add-staff`, staffData),
+    
+    // تحديث بيانات موظف 
+    updateStaff: (staffId, data) => axios.put(`${API_BASE}/admin/staff/${staffId}`, data),
+    
+    // حذف موظف 
+    deleteStaff: (staffId) => axios.delete(`${API_BASE}/admin/staff/${staffId}`),
+
+    
+    // جلب قائمة الطلاب لعرضها للأدمن
+    getAdminStudents: () => axios.get(`${API_BASE}/admin/students`),
+    
+    // تعديل بيانات طالب (الاسم، الإيميل، الخطة)
+    updateStudent: (studentId, data) => axios.put(`${API_BASE}/admin/students/${studentId}`, data),
+
+    getDepartments: () => axios.get(`${API_BASE}/admin/departments`),
+
+
+
+
+
+
+
+
+
+
+
+
 };

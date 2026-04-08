@@ -36,21 +36,38 @@ def check_schedule_conflict(cursor, days, start_time, end_time, room_id=None, in
 
 
 #login_staff
-def login_staff_service(email, password):
+def login_staff_service(email, password): #email لـ identifier  غيرنا 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM staff WHERE email = %s AND password = %s", (email, password))
+        
+        query = """
+            SELECT staff_id, name, email, role, dept_id 
+            FROM staff 
+            WHERE (email = %s OR official_id = %s) AND password = %s
+        """
+        
+        cursor.execute(query, (email, email, password))
         user = cursor.fetchone()
 
         if user:
             token = jwt.encode({
                 'staff_id': user['staff_id'],
+                'role': user['role'],
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
             }, SECRET_KEY, algorithm="HS256")
-            return {"status": "success", "token": token, "user": {"name": user['name'], "role": user['role']}}
+            
+            return {
+                "status": "success", 
+                "token": token, 
+                "user": {
+                    "name": user['name'], 
+                    "role": user['role'], 
+                    "dept_id": user['dept_id'] # هذا الرقم هو مفتاح واجهة رئيس القسم
+                }
+            }
         
-        return {"status": "error", "message": "البريد أو كلمة المرور غير صحيحة"}
+        return {"status": "error", "message": "بيانات الدخول غير صحيحة"}
     finally:
         cursor.close()
         conn.close()
@@ -547,3 +564,150 @@ def delete_prerequisite_service(plan_id, course_id, prereq_id, req_type):
     finally:
         cursor.close()
         conn.close()
+
+
+
+#admin
+def admin_get_all_staff_service():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # أضفنا s.dept_id هنا بشكل صريح
+        query = """
+            SELECT 
+                s.staff_id, 
+                s.official_id, 
+                s.name, 
+                s.email, 
+                s.role, 
+                s.dept_id,  -- هذا هو السطر المفقود الذي سبب المشكلة
+                d.dept_name 
+            FROM staff s
+            LEFT JOIN department d ON s.dept_id = d.dept_id
+        """
+        cursor.execute(query)
+        return cursor.fetchall() 
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def admin_get_all_students_service():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary = True)
+    try:
+        query = """
+            SELECT s.student_id, s.name, s.email, p.plan_name 
+            FROM student s
+            LEFT JOIN studyplan p ON s.plan_id = p.plan_id
+        """
+        cursor.execute(query)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
+
+def admin_add_staff_service(data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM staff WHERE email = %s OR official_id = %s", 
+                       (data['email'], data['official_id']))
+        if cursor.fetchone():
+            return {"status": "error", "message": "الإيميل أو الرقم الوظيفي موجود مسبقاً"}
+
+        query = """
+            INSERT INTO staff (official_id, name, email, password, role, dept_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            data['official_id'], 
+            data['name'], 
+            data['email'], 
+            data['password'], 
+            data['role'], 
+            data.get('dept_id') 
+        ))
+        conn.commit()
+        return {"status": "success", "message": "تمت إضافة الموظف بنجاح"}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def admin_update_staff_service(staff_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        check_query = """
+            SELECT * FROM staff 
+            WHERE (email = %s OR official_id = %s) AND staff_id != %s
+        """
+        cursor.execute(check_query, (data['email'], data['official_id'], staff_id))
+        if cursor.fetchone():
+            return {"status": "error", "message": "الإيميل أو الرقم الوظيفي مستخدم من قبل موظف آخر"}
+
+        update_query = """
+            UPDATE staff 
+            SET name = %s, email = %s, official_id = %s, role = %s, dept_id = %s
+            WHERE staff_id = %s
+        """
+        cursor.execute(update_query, (
+            data['name'], data['email'], data['official_id'], 
+            data['role'], data['dept_id'], staff_id
+        ))
+        
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث بيانات الموظف بنجاح"}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_update_student_service(student_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        update_query = """
+            UPDATE student 
+            SET name = %s, email = %s, plan_id = %s 
+            WHERE student_id = %s
+        """
+        cursor.execute(update_query, (data['name'], data['email'], data['plan_id'], student_id))
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث بيانات الطالب بنجاح"}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+def admin_get_all_departments_service():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # نجلب المعرف والاسم فقط لعرضهم في القائمة
+        query = "SELECT dept_id, dept_name FROM department"
+        cursor.execute(query)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+        
+
+
+
+
+

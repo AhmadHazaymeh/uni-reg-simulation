@@ -15,8 +15,7 @@ class CustomJSONProvider(DefaultJSONProvider):
 
 app = Flask(__name__)
 app.json = CustomJSONProvider(app)    
-CORS(app)
-
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 @app.errorhandler(500)
@@ -207,6 +206,51 @@ def remove_vote():
 @app.route('/api/student/<int:student_id>/votes', methods=['GET'])
 def get_student_votes(student_id):
     return jsonify(services.get_student_votes_service(student_id))
+
+
+#admin
+
+@app.route('/api/admin/staff', methods=['GET'])
+def get_all_staff():
+    return jsonify(services.admin_get_all_staff_service())
+
+
+@app.route('/api/admin/students' , methods = ['GET'])
+def get_all_students():
+    return jsonify(services.admin_get_all_students_service())
+
+
+@app.route('/api/admin/staff/<int:staff_id>' , methods = ['DELETE'])
+def delete_staff(staff_id):
+    return jsonify(services.admin_delete_staff_service(staff_id))
+
+@app.route('/api/admin/add-staff', methods=['POST'])
+def add_staff():
+    data = request.json or {}
+    result = services.admin_add_staff_service(data)
+    status_code = 201 if result['status'] == 'success' else 400
+    return jsonify(result), status_code
+
+# تحديث موظف
+@app.route('/api/admin/staff/<int:staff_id>', methods=['PUT'])
+def update_staff(staff_id):
+    data = request.json or {}
+    return jsonify(services.admin_update_staff_service(staff_id, data))
+
+# تحديث طالب
+@app.route('/api/admin/students/<student_id>', methods=['PUT'])
+def update_student(student_id):
+    data = request.json or {}
+    return jsonify(services.admin_update_student_service(student_id, data))
+
+
+@app.route('/api/admin/departments', methods=['GET'])
+def get_departments():
+   result = services.admin_get_all_departments_service()    
+   return jsonify(result)
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
