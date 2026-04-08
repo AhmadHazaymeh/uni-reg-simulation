@@ -249,6 +249,44 @@ def get_departments():
    result = services.admin_get_all_departments_service()    
    return jsonify(result)
 
+#hod
+
+# HoD Analytics Route
+@app.route('/api/hod/analytics', methods=['GET'])
+def get_hod_analytics():
+    # جلب رقم القسم من المعاملات المرسلة في الطلب
+    dept_id = request.args.get('dept_id')
+    if not dept_id:
+        return jsonify({"status": "error", "message": "معرف القسم مطلوب"}), 400
+        
+    # استدعاء دالة الخدمة التي تقوم بتحليل البيانات
+    result = services.get_hod_analytics_service(dept_id)
+    return jsonify(result)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -572,7 +572,7 @@ def admin_get_all_staff_service():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # أضفنا s.dept_id هنا بشكل صريح
+        # أضفنا s.dept_id 
         query = """
             SELECT 
                 s.staff_id, 
@@ -580,7 +580,7 @@ def admin_get_all_staff_service():
                 s.name, 
                 s.email, 
                 s.role, 
-                s.dept_id,  -- هذا هو السطر المفقود الذي سبب المشكلة
+                s.dept_id,  
                 d.dept_name 
             FROM staff s
             LEFT JOIN department d ON s.dept_id = d.dept_id
@@ -708,6 +708,46 @@ def admin_get_all_departments_service():
         
 
 
+#hod
+def get_hod_analytics_service(dept_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # شلنا شرط is_published مشان الدكتور يشوف كل اشي تحت ايده
+        query = """
+            SELECT s.section_id, c.course_code, c.title, s.section_num, s.capacity, s.days, s.start_time, s.end_time,
+            (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
+            FROM section s
+            JOIN course c ON s.course_id = c.course_id
+        """
+        cursor.execute(query)
+        sections = cursor.fetchall()
+        
+        reports = []
+        for sec in sections:
+            # حساب نسبة الإقبال (تجنب القسمة على صفر إذا السعة مش مدخلة صح)
+            capacity = sec['capacity'] if sec['capacity'] > 0 else 50
+            demand_pct = (sec['vote_count'] / capacity) * 100
+            
+            # منطق النصائح الذكية
+            advice = "الوضع مستقر."
+            status = "success"
+            if demand_pct > 90:
+                advice = "إقبال هائل! افتح شعبة جديدة فوراً."
+                status = "critical"
+            elif demand_pct < 15:
+                advice = "إقبال ضعيف، فكر بدمج الشعبة أو تغيير وقتها."
+                status = "warning"
 
+            reports.append({
+                **sec,
+                "demand_pct": round(demand_pct, 1),
+                "advice": advice,
+                "status": status
+            })
+        return reports
+    finally:
+        cursor.close()
+        conn.close()
 
 

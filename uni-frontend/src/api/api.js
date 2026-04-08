@@ -63,6 +63,8 @@ export const api = {
 
     getDepartments: () => axios.get(`${API_BASE}/admin/departments`),
 
+//hod
+getHODAnalytics: (deptId) => axios.get(`${API_BASE}/hod/analytics`, { params: { dept_id: deptId } }),
 
 
 
