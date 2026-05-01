@@ -46,10 +46,11 @@ const DataEntryDashboard = () => {
     ];
 
     const fetchData = async () => {
+        const deptId = localStorage.getItem('dept_id');
         try {
             const [plansRes, catalogRes] = await Promise.all([
-                api.getPlans(),
-                api.getCatalog()
+                api.getPlans(deptId),
+                api.getCatalog(deptId)
             ]);
             setPlans(plansRes.data.filter(p => p.specialization === selectedSpec));
             setCatalog(catalogRes.data);

@@ -53,7 +53,8 @@ const ScheduleTab = ({ catalog, styles }) => {
 
     const fetchSections = async () => {
         try {
-            const res = await api.getStaffSchedule(); 
+            const deptId = localStorage.getItem('dept_id'); // جلب رقم قسم الموظف
+            const res = await api.getStaffSchedule(deptId); // إرساله للسيرفر
             setSections(res.data);
         } catch (err) { console.error("Error fetching sections", err); }
     };
@@ -260,6 +261,26 @@ const ScheduleTab = ({ catalog, styles }) => {
                         <label style={styles.label}>اسم القاعة:</label>
                         <input placeholder="أدخل اسم القاعة (اختياري)" style={styles.inputField} value={newSection.room_id} onChange={e => setNewSection({...newSection, room_id: e.target.value})} />
                     </div>
+                    <div style={{display:'flex', flexDirection:'column'}}>
+                        <label style={styles.label}>اسم القاعة:</label>
+                        <input placeholder="أدخل اسم القاعة (اختياري)" style={styles.inputField} value={newSection.room_id} onChange={e => setNewSection({...newSection, room_id: e.target.value})} />
+                    </div>
+
+                    {/* الكود الجديد: حقل سعة الشعبة */}
+                    <div style={{display:'flex', flexDirection:'column'}}>
+                        <label style={styles.label}>سعة الشعبة (عدد المقاعد):</label>
+                        <input 
+                            type="number" 
+                            min="1" 
+                            placeholder="مثال: 50" 
+                            style={styles.inputField} 
+                            value={newSection.capacity} 
+                            onChange={e => setNewSection({...newSection, capacity: e.target.value})} 
+                            required 
+                        />
+                    </div>
+
+
 
                     <button type="submit" style={{...styles.saveBtn, gridColumn: 'span 3', height: '50px', borderRadius: '12px', fontSize: '16px'}}>
                         {editingId ? 'حفظ التعديلات الحالية' : 'إضافة الشعبة للجدول'}
@@ -337,7 +358,7 @@ const ScheduleTab = ({ catalog, styles }) => {
                                                 </div>
                                                 <div>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '5px' }}>
-                                                        <span style={{fontWeight:'bold'}}>{s.current_votes} صوت</span>
+                                                        <span style={{fontWeight:'bold'}}>{s.current_votes} صوت/ {s.capacity} مقعد</span>
                                                         <span style={{color: percent > 80 ? '#ef4444' : '#10b981'}}>{percent}%</span>
                                                     </div>
                                                     <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' }}>

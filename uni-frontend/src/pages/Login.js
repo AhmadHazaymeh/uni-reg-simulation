@@ -12,60 +12,80 @@ const Login = () => {
     const navigate = useNavigate();
 
    const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-        const res = await axios.post('http://127.0.0.1:5000/api/staff/login', { 
-            email, 
-            password 
-        });
-
-        if (res.data.status === 'success') {
-            const { token, user } = res.data;
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('role', user.role);
-            localStorage.setItem('dept_id', user.dept_id);
-            localStorage.setItem('user_name', user.name);
-
-            Swal.fire({
-                icon: 'success',
-                title: `أهلاً بك يا ${user.name}`,
-                text: 'تم تسجيل دخولك بنجاح',
-                confirmButtonColor: '#2563eb',
-                timer: 1500,
-                showConfirmButton: false
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await axios.post('http://127.0.0.1:5000/api/staff/login', { 
+                email, 
+                password 
             });
 
-            // توجيه المستخدم حسب دورهس Role
-            if (user.role === 'admin') {
-                navigate('/admin-dashboard');
-            } else if (user.role === 'hod') {
-                navigate('/hod-dashboard');
-            } else {
-                // للموظف العادي (clerk)
-                navigate('/data-entry');
-            }
+            if (res.data.status === 'success') {
+                const { token, user } = res.data;
 
-        } else {
+                // --- 🚨 بداية نقطة التفتيش الذكية 🚨 ---
+                // جلب القسم الذي تم اختياره من الشاشة الأولى
+                const targetDeptId = localStorage.getItem('target_dept_id');
+
+                // السماح للأدمن بالدخول دائماً، أما باقي الموظفين فنقارن رقم القسم
+                if (user.role !== 'admin' && targetDeptId !== null) {
+                    // نستخدم == لأن targetDeptId هو نص (String) و user.dept_id قد يكون رقم (Number)
+                    if (targetDeptId != user.dept_id) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'صلاحيات غير صالحة',
+                            text: 'هذا الحساب لا يتبع للجامعة أو القسم الأكاديمي الذي قمت باختياره.',
+                            confirmButtonColor: '#ef4444'
+                        });
+                        setLoading(false);
+                        return; // إيقاف عملية تسجيل الدخول!
+                    }
+                }
+                // --- 🚨 نهاية نقطة التفتيش 🚨 ---
+
+                localStorage.setItem('token', token);
+                localStorage.setItem('role', user.role);
+                localStorage.setItem('dept_id', user.dept_id);
+                localStorage.setItem('user_name', user.name);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: `أهلاً بك يا ${user.name}`,
+                    text: 'تم تسجيل دخولك بنجاح',
+                    confirmButtonColor: '#2563eb',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // توجيه المستخدم حسب دوره Role
+                if (user.role === 'admin') {
+                    navigate('/admin-dashboard');
+                } else if (user.role === 'hod') {
+                    navigate('/hod-dashboard');
+                } else {
+                    // للموظف العادي (clerk)
+                    navigate('/data-entry');
+                }
+
+            } else {
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: 'فشل الدخول', 
+                    text: res.data.message, 
+                    confirmButtonColor: '#2563eb' 
+                });
+            }
+        } catch (err) {
             Swal.fire({ 
                 icon: 'error', 
-                title: 'فشل الدخول', 
-                text: res.data.message, 
+                title: 'خطأ تقني', 
+                text: 'تأكد من تشغيل السيرفر (Flask)', 
                 confirmButtonColor: '#2563eb' 
             });
+        } finally {
+            setLoading(false);
         }
-    } catch (err) {
-        Swal.fire({ 
-            icon: 'error', 
-            title: 'خطأ تقني', 
-            text: 'تأكد من تشغيل السيرفر (Flask)', 
-            confirmButtonColor: '#2563eb' 
-        });
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     return (
         <div style={styles.container}>
@@ -74,7 +94,7 @@ const Login = () => {
                     <div style={styles.iconCircle}>
                         <LogIn size={28} color="#2563eb" />
                     </div>
-                    <h2 style={styles.title}>دخول مدخل البيانات </h2>
+                    <h2 style={styles.title}>دخول الموظف </h2>
                     <p style={styles.subtitle}>نظام محاكاة التسجيل بجامعة العلوم والتكنولوجيا</p>
                 </div>
 

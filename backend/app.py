@@ -60,9 +60,9 @@ def register_student():
 
 
 @app.route('/api/catalog/courses', methods=['GET'])
-def manage_catalog():
-    if request.method == 'GET':
-        return jsonify(services.get_all_courses_catalog_service())
+def get_catalog():
+    dept_id = request.args.get('dept_id') 
+    return jsonify(services.get_all_courses_catalog_service(dept_id))
     
     
 
@@ -70,8 +70,9 @@ def manage_catalog():
 
 @app.route('/api/plans', methods=['GET', 'POST'])
 def manage_plans():
+    dept_id = request.args.get('dept_id') # استقبال رقم القسم
     if request.method == 'GET':
-        return jsonify(services.get_all_plans_service())
+       return jsonify(services.get_all_plans_service(dept_id))
     
     data = request.json or {}
     errors = validators.validate_plan_data(data)
@@ -138,8 +139,9 @@ def delete_plan_prerequisite(plan_id, course_id):
 
 @app.route('/api/sections', methods=['GET', 'POST'])
 def manage_sections():
+    dept_id = request.args.get('dept_id')
     if request.method == 'GET':
-        return jsonify(services.get_all_sections_service()) 
+        return jsonify(services.get_all_sections_service(dept_id))
     
     data = request.json or {}
     errors = validators.validate_section_data(data)
@@ -150,6 +152,8 @@ def manage_sections():
     if result.get('status') == 'conflict':
         return jsonify(result), 409
     return jsonify(result), 201
+
+
 
 @app.route('/api/sections/<int:sid>', methods=['PUT', 'DELETE'])
 def manage_section_item(sid):
@@ -269,7 +273,12 @@ def get_hod_analytics():
 
 
 
-
+# Route جديد للتقرير النهائي الذكي
+@app.route('/api/hod/final_report', methods=['GET'])
+def get_hod_final_report():
+    dept_id = request.args.get('dept_id')
+    result = services.get_hod_final_report_service(dept_id)
+    return jsonify(result)
 
 
 

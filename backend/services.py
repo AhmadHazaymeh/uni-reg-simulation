@@ -77,38 +77,35 @@ def login_student_service(student_id, password):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        query = "SELECT student_id, name, email, plan_id FROM student WHERE student_id = %s AND password = %s"
+        query = "SELECT student_id, name, email, plan_id, dept_id FROM student WHERE student_id = %s AND password = %s"
         cursor.execute(query, (student_id, password))
         student = cursor.fetchone()
-
         if student:
-            token = jwt.encode({
-                'student_id': student['student_id'],
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-            }, SECRET_KEY, algorithm="HS256")
-            
+            token = jwt.encode({'student_id': student['student_id'], 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)}, SECRET_KEY, algorithm="HS256")
             return {
                 "status": "success",
                 "token": token,
                 "user": {
                     "name": student['name'], 
                     "id": student['student_id'],
-                    "plan_id": student['plan_id'] 
+                    "plan_id": student['plan_id'],
+                    "dept_id": student['dept_id'] 
                 }
             }
-        
         return {"status": "error", "message": "الرقم الجامعي أو كلمة المرور غير صحيحة"}
     finally:
         cursor.close()
         conn.close()
         
 
-def get_all_plans_service():
-    
+def get_all_plans_service(dept_id=None):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM studyplan")
+        if dept_id:
+            cursor.execute("SELECT * FROM studyplan WHERE dept_id = %s", (dept_id,))
+        else:
+            cursor.execute("SELECT * FROM studyplan")
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -148,11 +145,14 @@ def delete_study_plan_service(plan_id):
         conn.close()
 
 
-def get_all_courses_catalog_service():
+def get_all_courses_catalog_service(dept_id=None):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM course ORDER BY course_code ASC")
+        if dept_id and str(dept_id).lower() not in ['null', 'undefined', '']:
+            cursor.execute("SELECT * FROM course WHERE dept_id = %s ORDER BY course_code ASC", (dept_id,))
+        else:
+            cursor.execute("SELECT * FROM course ORDER BY course_code ASC")
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -347,26 +347,32 @@ def update_section_service(section_id, data):
         conn.close()
 
 
-def get_all_sections_service(): #to be presented for staff 
+def get_all_sections_service(dept_id=None):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+       
+        if not dept_id or str(dept_id).lower() in ['null', 'undefined', '']:
+            return [] 
+
         query = """
             SELECT s.*, c.title as course_name, c.course_code, c.credit_hours,
             (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as current_votes
-            FROM section s JOIN course c ON s.course_id = c.course_id
+            FROM section s 
+            JOIN course c ON s.course_id = c.course_id
+            WHERE c.dept_id = %s
             ORDER BY c.course_code ASC, s.section_num ASC
         """
-        cursor.execute(query)
+        cursor.execute(query, (dept_id,))
         results = cursor.fetchall()
-        for row in results:    # Before this an error was appearing)obj >> time ) json to react 
+        
+        for row in results:
             if row['start_time']: row['start_time'] = str(row['start_time'])
             if row['end_time']: row['end_time'] = str(row['end_time'])
         return results
     finally:
         cursor.close()
         conn.close()
-
 
 def get_student_schedule_service(student_id):
     conn = get_db_connection()
@@ -733,14 +739,16 @@ def get_hod_analytics_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # شلنا شرط is_published مشان الدكتور يشوف كل اشي تحت ايده
+        # أضفنا شرط الفلترة WHERE c.dept_id = %s
         query = """
             SELECT s.section_id, c.course_code, c.title, s.section_num, s.capacity, s.days, s.start_time, s.end_time,
             (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
             FROM section s
             JOIN course c ON s.course_id = c.course_id
+            WHERE c.dept_id = %s
         """
-        cursor.execute(query)
+        # تمرير dept_id مع الاستعلام
+        cursor.execute(query, (dept_id,))
         sections = cursor.fetchall()
         
         reports = []
@@ -769,5 +777,105 @@ def get_hod_analytics_service(dept_id):
     finally:
         cursor.close()
         conn.close()
+
+
+
+# --- إضافة ميزة التقرير النهائي لرئيس القسم ---
+def get_hod_final_report_service(dept_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # التأكد من إضافة شرط القسم هنا أيضاً
+        query = """
+            SELECT c.course_id, c.course_code, c.title,
+                   s.section_id, s.section_num, s.days, s.start_time, s.end_time, s.capacity,
+                   (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
+            FROM course c
+            JOIN section s ON c.course_id = s.course_id
+            WHERE c.dept_id = %s
+            ORDER BY c.course_code, s.section_num
+        """
+        cursor.execute(query, (dept_id,))
+        data = cursor.fetchall()
+
+        courses_summary = {}
+        for row in data:
+            cid = row['course_id']
+            if cid not in courses_summary:
+                courses_summary[cid] = {
+                    'course_code': row['course_code'],
+                    'title': row['title'],
+                    'total_votes': 0,
+                    'sections': []
+                }
+            courses_summary[cid]['total_votes'] += row['vote_count']
+            courses_summary[cid]['sections'].append(row)
+
+        final_report = []
+        for cid, info in courses_summary.items():
+            total_votes = info['total_votes']
+            if total_votes == 0:
+                continue # تخطي المواد التي ليس عليها أي تصويت
+
+            # ترتيب الشُعب من الأعلى إقبالاً إلى الأقل (لمعرفة أفضل الأوقات)
+            sorted_sections = sorted(info['sections'], key=lambda x: x['vote_count'], reverse=True)
+            
+            # خوارزمية تحديد عدد الشُعب (بافتراض أن السعة المنطقية 50، ونفتح شعبة إضافية لو زاد العدد عن 15)
+            recommended_sections_count = max(1, (total_votes // 50) + (1 if total_votes % 50 >= 15 else 0))
+
+            proposed_sections = []
+            for i in range(recommended_sections_count):
+                if i < len(sorted_sections):
+                    best_sec = sorted_sections[i]
+                    # اقتراح سعة الشعبة بناءً على الضغط
+                    suggested_cap = 60 if best_sec['vote_count'] > 50 else 50
+                    proposed_sections.append({
+                        'days': best_sec['days'],
+                        'start_time': str(best_sec['start_time']),
+                        'end_time': str(best_sec['end_time']),
+                        'suggested_capacity': suggested_cap,
+                        'vote_count': best_sec['vote_count']
+                    })
+                else:
+                    # في حال احتجنا شُعب إضافية لم تكن موجودة بالمحاكاة
+                    proposed_sections.append({
+                        'days': 'يُحدد لاحقاً', 
+                        'start_time': 'يُحدد',
+                        'end_time': 'يُحدد',
+                        'suggested_capacity': 50,
+                        'vote_count': 0
+                    })
+
+            # توليد اقتراحات ذكية (Smart Insights)
+            insights = []
+            if recommended_sections_count > len(info['sections']):
+                insights.append(f"إقبال كثيف جداً! المادة تحتاج إلى فتح {recommended_sections_count - len(info['sections'])} شُعب إضافية لتغطية عدد الطلاب المتقدمين.")
+            
+            zero_vote_sections = [s for s in info['sections'] if s['vote_count'] == 0]
+            if zero_vote_sections:
+                insights.append(f"هناك {len(zero_vote_sections)} شُعب مطروحة لم يصوت لها أحد، يُفضل إلغاؤها أو تغيير أوقاتها لتوفير القاعات والمحاضرين.")
+            
+            high_demand_sections = [s for s in info['sections'] if s['vote_count'] > s['capacity']]
+            if high_demand_sections:
+                insights.append(f"أوقات الدوام ({str(high_demand_sections[0]['start_time'])}) عليها طلب يتجاوز السعة، يُنصح بنقل هذه الشعبة إلى مدرج أكبر.")
+
+            final_report.append({
+                'course_code': info['course_code'],
+                'title': info['title'],
+                'total_votes': total_votes,
+                'recommended_count': recommended_sections_count,
+                'proposed_sections': proposed_sections,
+                'insights': insights
+            })
+
+        return {"status": "success", "report": final_report}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+        
 
 

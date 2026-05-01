@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/api'; 
-import { AlertTriangle, TrendingUp, FileText, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react'; 
-import Swal from 'sweetalert2';
+import { AlertTriangle, TrendingUp, FileText, ChevronDown, ChevronUp, Clock, Calendar, Lightbulb, CheckCircle, BookOpen } from 'lucide-react';import Swal from 'sweetalert2';
 
 const HoDDashboard = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAnalytics, setShowAnalytics] = useState(false);
+    const [finalReport, setFinalReport] = useState([]);
+    const [showReport, setShowReport] = useState(false);
 
-    // خريطة تحويل الرموز لأيام بالعربي (شغل التكنو الصح)
+
     const daysMap = {
         'S': 'سبت', 'U': 'أحد', 'M': 'اثنين', 'T': 'ثلاثاء', 'W': 'أربعاء', 'R': 'خميس'
     };
@@ -27,8 +28,15 @@ const HoDDashboard = () => {
         setLoading(true);
         const deptId = localStorage.getItem('dept_id'); 
         try {
-            const res = await api.getHODAnalytics(deptId); 
-            setReports(res.data);
+            const [analyticsRes, reportRes] = await Promise.all([
+                api.getHODAnalytics(deptId),
+                api.getHODFinalReport(deptId)
+            ]);
+            
+            setReports(analyticsRes.data);
+            if (reportRes.data.status === 'success') {
+                setFinalReport(reportRes.data.report);
+            }
             setLoading(false);
         } catch (err) {
             console.error("مشكلة بجلب البيانات من السيرفر", err);
@@ -155,6 +163,85 @@ const HoDDashboard = () => {
                     </div>
                 </div>
             )}
+            {/* --- بداية ميزة التقرير النهائي الذكي --- */}
+            <div 
+                style={{
+                    ...styles.toggleCard, 
+                    borderRadius: showReport ? '20px 20px 0 0' : '20px',
+                    marginTop: '25px'
+                }} 
+                onClick={() => setShowReport(!showReport)}
+            >
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                    <div style={{...styles.iconCircle, backgroundColor: '#f0fdf4'}}><FileText size={24} color="#16a34a" /></div>
+                    <div>
+                        <h3 style={styles.toggleTitle}>التقرير النهائي والتوصيات الذكية لاعتماد الجدول</h3>
+                        <p style={styles.toggleSub}>خلاصة مدروسة لعدد الشُعب والأوقات المقترحة بناءً على تحليل التصويتات</p>
+                    </div>
+                </div>
+                {showReport ? <ChevronUp size={24} color="#64748b" /> : <ChevronDown size={24} color="#64748b" />}
+            </div>
+
+            {showReport && (
+                <div style={styles.mainCardFadeIn}>
+                    <div style={{padding: '30px', backgroundColor: '#f8fafc'}}>
+                        {finalReport.length === 0 ? (
+                            <p style={{textAlign: 'center', color: '#64748b'}}>لا يوجد تصويتات كافية لإصدار تقرير بعد.</p>
+                        ) : (
+                            finalReport.map((item, idx) => (
+                                <div key={idx} style={{backgroundColor: '#fff', borderRadius: '15px', padding: '25px', marginBottom: '20px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'}}>
+                                    
+                                    {/* ترويسة المادة */}
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '15px', marginBottom: '20px'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                            <BookOpen size={22} color="#16a34a"/>
+                                            <h3 style={{margin: 0, fontSize: '18px', color: '#1e293b'}}>{item.title} <span style={{fontSize: '14px', color: '#64748b', fontWeight: 'normal'}}>({item.course_code})</span></h3>
+                                        </div>
+                                        <div style={{backgroundColor: '#f0fdf4', color: '#16a34a', padding: '8px 15px', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px'}}>
+                                            إجمالي الطلاب الراغبين: {item.total_votes} طالب
+                                        </div>
+                                    </div>
+
+                                    {/* التوصية والشعب المقترحة */}
+                                    <div style={{marginBottom: '20px'}}>
+                                        <h4 style={{fontSize: '15px', color: '#1e293b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px'}}><CheckCircle size={18} color="#10b981"/> القرار والجدول المقترح:</h4>
+                                        <p style={{fontSize: '15px', color: '#475569', lineHeight: '1.6'}}>
+                                            بناءً على الأعداد وتفضيلات الأوقات، يُنصح بطرح <strong>{item.recommended_count}</strong> شُعب لهذه المادة موزعة كالتالي:
+                                        </p>
+                                        
+                                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '15px', marginTop: '15px'}}>
+                                            {item.proposed_sections.map((sec, sIdx) => (
+                                                <div key={sIdx} style={{backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px', flex: '1 1 200px'}}>
+                                                    <div style={{fontWeight: 'bold', color: '#16a34a', marginBottom: '10px', borderBottom:'1px dashed #cbd5e1', paddingBottom:'5px'}}>الشعبة #{sIdx + 1}</div>
+                                                    <div style={{fontSize: '13px', color: '#475569', marginBottom: '6px'}}><strong>الأيام:</strong> {translateDays(sec.days)}</div>
+                                                    <div style={{fontSize: '13px', color: '#475569', marginBottom: '6px'}}><strong>الوقت:</strong> {sec.start_time} - {sec.end_time}</div>
+                                                    <div style={{fontSize: '13px', color: '#475569'}}><strong>السعة المطلوبة:</strong> {sec.suggested_capacity} مقعد</div>
+                                                    {sec.vote_count > 0 && <div style={{fontSize: '11px', color: '#64748b', marginTop: '10px'}}>* هذا الوقت فضّله {sec.vote_count} طالب</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* الإضاءات الذكية */}
+                                    {item.insights.length > 0 && (
+                                        <div style={{backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '15px'}}>
+                                            <h4 style={{fontSize: '14px', color: '#d97706', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px'}}><Lightbulb size={18}/> إضاءات وخيارات بديلة لحل التعارض:</h4>
+                                            <ul style={{margin: 0, paddingRight: '20px', color: '#b45309', fontSize: '13px', lineHeight: '1.6'}}>
+                                                {item.insights.map((insight, iIdx) => (
+                                                    <li key={iIdx} style={{marginBottom: '5px'}}>{insight}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+            {/* --- نهاية ميزة التقرير النهائي الذكي --- */}
+
+
         </div>
     );
 };

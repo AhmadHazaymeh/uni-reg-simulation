@@ -4,15 +4,13 @@ const API_BASE = "http://127.0.0.1:5000/api";
 
 export const api = {
     //  Plans
-    getPlans: () => axios.get(`${API_BASE}/plans`),
-    createPlan: (planData) => axios.post(`${API_BASE}/plans`, planData),
+    getPlans: (deptId) => axios.get(`${API_BASE}/plans`, { params: { dept_id: deptId } }),    createPlan: (planData) => axios.post(`${API_BASE}/plans`, planData),
     deletePlan: (planId) => axios.delete(`${API_BASE}/plans/${planId}`),
     deletePlanCoursePrereq: (planId, courseId, data) => axios.post(`${API_BASE}/plans/${planId}/courses/${courseId}/prereqs/delete`, data),
         
 
     // Catalog
-    getCatalog: () => axios.get(`${API_BASE}/catalog/courses`),
-    
+   getCatalog: (deptId) => axios.get(`${API_BASE}/catalog/courses`, { params: { dept_id: deptId } }),    
 
     // Plan-Courses
     getPlanCourses: (planId) => axios.get(`${API_BASE}/plans/${planId}/courses`),
@@ -27,7 +25,7 @@ export const api = {
     // Schedule 
     getStudentSchedule: (studentId) => axios.get(`${API_BASE}/student/schedule`, { params: { student_id: studentId } }),
     
-    getStaffSchedule: () => axios.get(`${API_BASE}/sections`),
+    getStaffSchedule: (deptId) => axios.get(`${API_BASE}/sections`, { params: { dept_id: deptId } }),
     createSection: (data) => axios.post(`${API_BASE}/sections`, data),
     updateSection: (id, data) => axios.put(`${API_BASE}/sections/${id}`, data),
     deleteSection: (id, params) => axios.delete(`${API_BASE}/sections/${id}`, { params }),
@@ -65,7 +63,7 @@ deleteStaff: (staffId) => axios.delete(`${API_BASE}/staff/${staffId}`),
 
 //hod
 getHODAnalytics: (deptId) => axios.get(`${API_BASE}/hod/analytics`, { params: { dept_id: deptId } }),
-
+getHODFinalReport: (deptId) => axios.get(`${API_BASE}/hod/final_report`, { params: { dept_id: deptId } }), // السطر الجديد هنا
 
 
 
