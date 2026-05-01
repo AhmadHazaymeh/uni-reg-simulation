@@ -215,7 +215,7 @@ const HoDDashboard = () => {
                                                     <div style={{fontWeight: 'bold', color: '#16a34a', marginBottom: '10px', borderBottom:'1px dashed #cbd5e1', paddingBottom:'5px'}}>الشعبة #{sIdx + 1}</div>
                                                     <div style={{fontSize: '13px', color: '#475569', marginBottom: '6px'}}><strong>الأيام:</strong> {translateDays(sec.days)}</div>
                                                     <div style={{fontSize: '13px', color: '#475569', marginBottom: '6px'}}><strong>الوقت:</strong> {sec.start_time} - {sec.end_time}</div>
-                                                    <div style={{fontSize: '13px', color: '#475569'}}><strong>السعة المطلوبة:</strong> {sec.suggested_capacity} مقعد</div>
+                                                    <div style={{fontSize: '13px', color: '#475569'}}><strong>السعة المطلوبة:</strong> {sec.capacity} مقعد</div>
                                                     {sec.vote_count > 0 && <div style={{fontSize: '11px', color: '#64748b', marginTop: '10px'}}>* هذا الوقت فضّله {sec.vote_count} طالب</div>}
                                                 </div>
                                             ))}

@@ -785,7 +785,6 @@ def get_hod_final_report_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # التأكد من إضافة شرط القسم هنا أيضاً
         query = """
             SELECT c.course_id, c.course_code, c.title,
                    s.section_id, s.section_num, s.days, s.start_time, s.end_time, s.capacity,
@@ -815,38 +814,35 @@ def get_hod_final_report_service(dept_id):
         for cid, info in courses_summary.items():
             total_votes = info['total_votes']
             if total_votes == 0:
-                continue # تخطي المواد التي ليس عليها أي تصويت
+                continue 
 
-            # ترتيب الشُعب من الأعلى إقبالاً إلى الأقل (لمعرفة أفضل الأوقات)
             sorted_sections = sorted(info['sections'], key=lambda x: x['vote_count'], reverse=True)
             
-            # خوارزمية تحديد عدد الشُعب (بافتراض أن السعة المنطقية 50، ونفتح شعبة إضافية لو زاد العدد عن 15)
             recommended_sections_count = max(1, (total_votes // 50) + (1 if total_votes % 50 >= 15 else 0))
 
             proposed_sections = []
             for i in range(recommended_sections_count):
                 if i < len(sorted_sections):
                     best_sec = sorted_sections[i]
-                    # اقتراح سعة الشعبة بناءً على الضغط
-                    suggested_cap = 60 if best_sec['vote_count'] > 50 else 50
+                    
+                    actual_capacity = best_sec['capacity'] if best_sec['capacity'] else 50
+                    
                     proposed_sections.append({
                         'days': best_sec['days'],
                         'start_time': str(best_sec['start_time']),
                         'end_time': str(best_sec['end_time']),
-                        'suggested_capacity': suggested_cap,
+                        'capacity': actual_capacity, 
                         'vote_count': best_sec['vote_count']
                     })
                 else:
-                    # في حال احتجنا شُعب إضافية لم تكن موجودة بالمحاكاة
                     proposed_sections.append({
                         'days': 'يُحدد لاحقاً', 
                         'start_time': 'يُحدد',
                         'end_time': 'يُحدد',
-                        'suggested_capacity': 50,
+                        'capacity': 50, 
                         'vote_count': 0
                     })
 
-            # توليد اقتراحات ذكية (Smart Insights)
             insights = []
             if recommended_sections_count > len(info['sections']):
                 insights.append(f"إقبال كثيف جداً! المادة تحتاج إلى فتح {recommended_sections_count - len(info['sections'])} شُعب إضافية لتغطية عدد الطلاب المتقدمين.")
@@ -855,7 +851,8 @@ def get_hod_final_report_service(dept_id):
             if zero_vote_sections:
                 insights.append(f"هناك {len(zero_vote_sections)} شُعب مطروحة لم يصوت لها أحد، يُفضل إلغاؤها أو تغيير أوقاتها لتوفير القاعات والمحاضرين.")
             
-            high_demand_sections = [s for s in info['sections'] if s['vote_count'] > s['capacity']]
+            
+            high_demand_sections = [s for s in info['sections'] if s['capacity'] and s['vote_count'] > s['capacity']]
             if high_demand_sections:
                 insights.append(f"أوقات الدوام ({str(high_demand_sections[0]['start_time'])}) عليها طلب يتجاوز السعة، يُنصح بنقل هذه الشعبة إلى مدرج أكبر.")
 
@@ -874,7 +871,6 @@ def get_hod_final_report_service(dept_id):
     finally:
         cursor.close()
         conn.close()
-
 
         
 
