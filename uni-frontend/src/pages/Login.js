@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react';
+import { api } from '../api/api'; // استيراد كائن الـ api المحدث
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -11,61 +11,74 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-   const handleLogin = async (e) => {
+    // جلب اسم الجامعة المختار لعرضه في العنوان (اختياري للجمالية)
+    const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
+
+    const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
+
+        // 1. جلب رقم الجامعة التي اختارها المستخدم من localStorage
+        const selectedUniId = localStorage.getItem('selected_uni_id');
+
+        if (!selectedUniId) {
+            setLoading(false);
+            return Swal.fire({
+                icon: 'warning',
+                title: 'تنبيه',
+                text: 'يرجى العودة لصفحة البداية واختيار الجامعة أولاً لضمان الدخول للنظام الصحيح.',
+                confirmButtonColor: '#2563eb'
+            });
+        }
+
         try {
-            const res = await axios.post('http://127.0.0.1:5000/api/staff/login', { 
+            // 2. استخدام api.loginStaff وإرسال الـ uni_id مع البيانات
+            const res = await api.loginStaff({ 
                 email, 
-                password 
+                password,
+                uni_id: selectedUniId 
             });
 
             if (res.data.status === 'success') {
                 const { token, user } = res.data;
 
                 // --- 🚨 بداية نقطة التفتيش الذكية 🚨 ---
-                // جلب القسم الذي تم اختياره من الشاشة الأولى
                 const targetDeptId = localStorage.getItem('target_dept_id');
 
-                // السماح للأدمن بالدخول دائماً، أما باقي الموظفين فنقارن رقم القسم
+                // التحقق من انتمام الموظف للقسم المختار (إلا إذا كان أدمن عام)
                 if (user.role !== 'admin' && targetDeptId !== null) {
-                    // نستخدم == لأن targetDeptId هو نص (String) و user.dept_id قد يكون رقم (Number)
                     if (targetDeptId != user.dept_id) {
                         Swal.fire({
                             icon: 'error',
                             title: 'صلاحيات غير صالحة',
-                            text: 'هذا الحساب لا يتبع للجامعة أو القسم الأكاديمي الذي قمت باختياره.',
+                            text: 'هذا الحساب لا يتبع للقسم الأكاديمي الذي قمت باختياره في هذه الجامعة.',
                             confirmButtonColor: '#ef4444'
                         });
                         setLoading(false);
-                        return; // إيقاف عملية تسجيل الدخول!
+                        return;
                     }
                 }
                 // --- 🚨 نهاية نقطة التفتيش 🚨 ---
 
+                // 3. تخزين بيانات الجلسة
                 localStorage.setItem('token', token);
                 localStorage.setItem('role', user.role);
                 localStorage.setItem('dept_id', user.dept_id);
                 localStorage.setItem('user_name', user.name);
+                localStorage.setItem('uni_id', user.uni_id); // تخزين رقم الجامعة المسجل عليها
 
                 Swal.fire({
                     icon: 'success',
                     title: `أهلاً بك يا ${user.name}`,
-                    text: 'تم تسجيل دخولك بنجاح',
-                    confirmButtonColor: '#2563eb',
+                    text: `تم تسجيل دخولك بنجاح إلى ${selectedUniName}`,
                     timer: 1500,
                     showConfirmButton: false
                 });
 
-                // توجيه المستخدم حسب دوره Role
-                if (user.role === 'admin') {
-                    navigate('/admin-dashboard');
-                } else if (user.role === 'hod') {
-                    navigate('/hod-dashboard');
-                } else {
-                    // للموظف العادي (clerk)
-                    navigate('/data-entry');
-                }
+                // توجيه المستخدم حسب دوره
+                if (user.role === 'admin') navigate('/admin-dashboard');
+                else if (user.role === 'hod') navigate('/hod-dashboard');
+                else navigate('/data-entry');
 
             } else {
                 Swal.fire({ 
@@ -76,10 +89,11 @@ const Login = () => {
                 });
             }
         } catch (err) {
+            const errorMsg = err.response?.data?.message || 'تأكد من تشغيل السيرفر ومن صحة بيانات الدخول لهذه الجامعة';
             Swal.fire({ 
                 icon: 'error', 
-                title: 'خطأ تقني', 
-                text: 'تأكد من تشغيل السيرفر (Flask)', 
+                title: 'خطأ في الاتصال', 
+                text: errorMsg, 
                 confirmButtonColor: '#2563eb' 
             });
         } finally {
@@ -94,18 +108,19 @@ const Login = () => {
                     <div style={styles.iconCircle}>
                         <LogIn size={28} color="#2563eb" />
                     </div>
-                    <h2 style={styles.title}>دخول الموظف </h2>
-                    <p style={styles.subtitle}>نظام محاكاة التسجيل بجامعة العلوم والتكنولوجيا</p>
+                    <h2 style={styles.title}>دخول الموظف</h2>
+                    {/* عرض اسم الجامعة المختار ديناميكياً */}
+                    <p style={styles.subtitle}>بوابة تسجيل الموظفين - {selectedUniName}</p>
                 </div>
 
                 <form onSubmit={handleLogin} style={styles.form}>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>البريد الإلكتروني</label>
+                        <label style={styles.label}>البريد الإلكتروني أو الرقم الوظيفي</label>
                         <div style={styles.inputWrapper}>
                             <Mail style={styles.fieldIcon} size={18} color="#94a3b8" />
                             <input 
-                                type="email" 
-                                placeholder="clerk@just.edu.jo" 
+                                type="text" 
+                                placeholder="أدخل بيانات الاعتماد الخاصة بك" 
                                 style={styles.input} 
                                 onChange={(e) => setEmail(e.target.value)} 
                                 required 
@@ -144,13 +159,14 @@ const Login = () => {
                 </form>
 
                 <div style={styles.footer}>
-                    <p>© 2025 مشروع التخرج - كلية تكنولوجيا المعلومات</p>
+                    <p>© 2025 نظام محاكاة التسجيل الجامعي المتعدد</p>
                 </div>
             </div>
         </div>
     );
 };
 
+// ... (نفس الـ styles التي أرسلتها بدون تغيير)
 const styles = {
     container: {
         display: 'flex',

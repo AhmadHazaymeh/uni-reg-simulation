@@ -8,13 +8,40 @@ const StudentLogin = () => {
     const navigate = useNavigate();
     const [loginData, setLoginData] = useState({ student_id: '', password: '' });
 
+    // جلب بيانات الجامعة المختارة من شاشة البداية
+    const selectedUniId = localStorage.getItem('selected_uni_id');
+    const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
+
     const handleLogin = async (e) => {
         e.preventDefault();
+
+        // التأكد من أن الطالب اختار جامعة من الشاشة الرئيسية
+        if (!selectedUniId) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'تنبيه',
+                text: 'يرجى العودة لصفحة البداية واختيار الجامعة أولاً.',
+                confirmButtonColor: '#10b981'
+            });
+        }
+
+        // إضافة رقم الجامعة للبيانات المرسلة للباك إند
+        const payload = {
+            ...loginData,
+            uni_id: selectedUniId
+        };
+
         try {
-            const res = await api.loginStudent(loginData); 
+            const res = await api.loginStudent(payload); 
             
             if (res.data.status === 'success') {
-                Swal.fire({ icon: 'success', title: 'تم تسجيل الدخول بنجاح', timer: 1500, showConfirmButton: false });
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: 'تم تسجيل الدخول بنجاح', 
+                    text: `أهلاً بك في نظام ${selectedUniName}`,
+                    timer: 1500, 
+                    showConfirmButton: false 
+                });
                 
                 localStorage.setItem('student_token', res.data.token);
                 localStorage.setItem('student_user', JSON.stringify(res.data.user));
@@ -35,14 +62,16 @@ const StudentLogin = () => {
                 <div style={styles.header}>
                     <div style={styles.iconCircle}><LogIn color="#fff" size={32} /></div>
                     <h2 style={styles.title}>تسجيل دخول الطالب</h2>
-                    <p style={styles.subtitle}>نظام محاكاة التسجيل - بوابة الطالب</p>
+                    {/* عرض اسم الجامعة ديناميكياً */}
+                    <p style={styles.subtitle}>بوابة الطالب - {selectedUniName}</p>
                 </div>
 
                 <form onSubmit={handleLogin} style={styles.form}>
                     <div style={styles.inputGroup}>
                         <label style={styles.label}><Hash size={16} /> الرقم الجامعي:</label>
+                        {/* تعديل الـ Placeholder ليكون عاماً */}
                         <input 
-                            placeholder="1XXXXX" 
+                            placeholder="أدخل رقمك الجامعي" 
                             style={styles.input} 
                             value={loginData.student_id}
                             onChange={e => setLoginData({...loginData, student_id: e.target.value})} 
@@ -73,17 +102,19 @@ const StudentLogin = () => {
     );
 };
 
+// الستايلات (styles) تبقى كما هي بدون تغيير
 const styles = {
-    container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecfdf5', padding: '20px', fontFamily: 'Tajawal, sans-serif' },
-    card: { backgroundColor: '#fff', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' },
+    container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecfdf5', padding: '20px', fontFamily: 'Tajawal, sans-serif', direction: 'rtl' },
+    card: { backgroundColor: '#fff', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px', textAlign: 'right' },
     header: { textAlign: 'center', marginBottom: '30px' },
     iconCircle: { backgroundColor: '#10b981', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' },
     title: { fontSize: '24px', color: '#1e293b', fontWeight: 'bold' },
     subtitle: { color: '#64748b', fontSize: '14px' },
-    inputGroup: { marginBottom: '20px' },
-    label: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#475569', fontWeight: '600', fontSize: '14px' },
-    input: { width: '100%', padding: '12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', outline: 'none' },
-    loginBtn: { width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' },
+    form: { display: 'flex', flexDirection: 'column', gap: '18px' },
+    inputGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
+    label: { display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: '600', fontSize: '14px' },
+    input: { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none', transition: '0.3s', textAlign: 'right', boxSizing: 'border-box' },
+    loginBtn: { width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s', marginTop: '10px' },
     footer: { marginTop: '20px', textAlign: 'center', fontSize: '14px', color: '#64748b' },
     link: { color: '#10b981', textDecoration: 'none', fontWeight: 'bold' }
 };

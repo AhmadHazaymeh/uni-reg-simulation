@@ -33,27 +33,52 @@ def handle_internal_server_error(e):
 @app.route('/api/staff/login', methods=['POST'])
 def staff_login():
     data = request.json or {}
+    uni_id = data.get('uni_id')
+    
+    if not uni_id:
+        return jsonify({"status": "error", "message": "يجب تحديد الجامعة من شاشة البداية"}), 400
+
     errors = validators.validate_login_data(data)
     if errors:
         return jsonify({"errors": errors}), 400
-    return jsonify(services.login_staff_service(data.get('email'), data.get('password')))
+        
+    # ملاحظة: يجب أن تعدل دالة login_staff_service في ملف services.py لتستقبل uni_id وتقارنه أيضاً!
+    return jsonify(services.login_staff_service(data.get('email'), data.get('password'), uni_id))
+
 
 @app.route('/api/student/login', methods=['POST'])
 def student_login():
     data = request.json or {}
-    result = services.login_student_service(data.get('student_id'), data.get('password'))
+    uni_id = data.get('uni_id')
+    
+    if not uni_id:
+        return jsonify({"status": "error", "message": "يجب تحديد الجامعة من شاشة البداية"}), 400
+        
+    result = services.login_student_service(data.get('student_id'), data.get('password'), uni_id)
     status_code = 200 if result.get('status') == 'success' else 401
     return jsonify(result), status_code
-
 
 
 @app.route('/api/students', methods=['POST'])
 def register_student():
     data = request.json or {}
-    errors = validators.validate_student_data(data)
+    uni_id = data.get('uni_id')
+    
+    # 1. التحقق من إرسال رقم الجامعة
+    if not uni_id:
+        return jsonify({"status": "error", "message": "يجب تحديد الجامعة أولاً"}), 400
+
+    # 2. جلب إعدادات الجامعة (الدومين ونمط الرقم الجامعي)
+    uni_settings = services.get_university_settings(uni_id)
+    if not uni_settings:
+        return jsonify({"status": "error", "message": "الجامعة المختارة غير موجودة بالنظام"}), 404
+
+    # 3. التحقق الديناميكي
+    errors = validators.validate_student_data(data, uni_settings['email_domain'], uni_settings['id_pattern'])
     if errors:
         return jsonify({"errors": errors}), 400
     
+    # 4. إتمام التسجيل
     result = services.create_student_service(data)
     status_code = 201 if result.get('status') == 'success' else 400
     return jsonify(result), status_code
@@ -70,9 +95,9 @@ def get_catalog():
 
 @app.route('/api/plans', methods=['GET', 'POST'])
 def manage_plans():
-    dept_id = request.args.get('dept_id') # استقبال رقم القسم
+    dept_id = request.args.get('dept_id') # بما أن القسم يتبع لكلية وجامعة، العزل هنا يتحقق تلقائياً
     if request.method == 'GET':
-       return jsonify(services.get_all_plans_service(dept_id))
+        return jsonify(services.get_all_plans_service(dept_id))
     
     data = request.json or {}
     errors = validators.validate_plan_data(data)
@@ -85,6 +110,7 @@ def manage_plans():
         data.get('total_hours')
     )
     return jsonify(result), 201
+
 
 @app.route('/api/plans/<int:plan_id>', methods=['DELETE'])
 def delete_study_plan(plan_id):
@@ -137,6 +163,10 @@ def delete_plan_prerequisite(plan_id, course_id):
 
 # Sections
 
+
+
+
+
 @app.route('/api/sections', methods=['GET', 'POST'])
 def manage_sections():
     dept_id = request.args.get('dept_id')
@@ -154,17 +184,6 @@ def manage_sections():
     return jsonify(result), 201
 
 
-
-@app.route('/api/sections/<int:sid>', methods=['PUT', 'DELETE'])
-def manage_section_item(sid):
-    if request.method == 'PUT':
-        result = services.update_section_service(sid, request.json)
-        if result.get('status') == 'conflict':
-            return jsonify(result), 409
-        return jsonify(result)
-    
-    keep_votes = request.args.get('keep_votes') == 'true'
-    return jsonify(services.delete_section_service(sid, keep_votes))
 
 @app.route('/api/sections/publish', methods=['POST'])
 def publish_schedule():
@@ -216,12 +235,24 @@ def get_student_votes(student_id):
 
 @app.route('/api/admin/staff', methods=['GET'])
 def get_all_staff():
-    return jsonify(services.admin_get_all_staff_service())
+    uni_id = request.args.get('uni_id')
+    if not uni_id:
+        return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
+        
+    # تمرير uni_id للدالة في services
+    result = services.admin_get_all_staff_service(uni_id)
+    return jsonify(result)
 
 
-@app.route('/api/admin/students' , methods = ['GET'])
+@app.route('/api/admin/students', methods=['GET'])
 def get_all_students():
-    return jsonify(services.admin_get_all_students_service())
+    uni_id = request.args.get('uni_id')
+    if not uni_id:
+        return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
+        
+    # تمرير uni_id للدالة في services
+    result = services.admin_get_all_students_service(uni_id)
+    return jsonify(result)
 
 
 # هاد الراوت مشان حذف الموظفين (مدخلي البيانات أو رؤساء الأقسام)
@@ -253,8 +284,13 @@ def update_student(student_id):
 
 @app.route('/api/admin/departments', methods=['GET'])
 def get_departments():
-   result = services.admin_get_all_departments_service()    
-   return jsonify(result)
+    # تعديل: جلب الأقسام التابعة للجامعة المحددة فقط
+    uni_id = request.args.get('uni_id')
+    if not uni_id:
+        return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
+        
+    result = services.admin_get_all_departments_service(uni_id)    
+    return jsonify(result)
 
 #hod
 
@@ -282,7 +318,34 @@ def get_hod_final_report():
 
 
 
-
+@app.route('/api/universities', methods=['GET'])
+def get_universities():
+    # هذا المسار يجلب أسماء الجامعات والكليات التابعة لها لعرضها في الشاشة الرئيسية
+    conn = services.get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # جلب الجامعات
+        cursor.execute("SELECT uni_id as id, uni_name as name FROM university")
+        universities = cursor.fetchall()
+        
+        # جلب الكليات وتوزيعها على الجامعات
+        cursor.execute("SELECT fac_id as id, fac_name as name, uni_id FROM faculty")
+        faculties = cursor.fetchall()
+        
+        # جلب الأقسام وتوزيعها على الكليات
+        cursor.execute("SELECT dept_id as id, dept_name as name, fac_id FROM department")
+        departments = cursor.fetchall()
+        
+        # تجميع البيانات في هيكل شجري (Tree Structure) يشبه ملف universitiesData.js القديم
+        for uni in universities:
+            uni['faculties'] = [fac for fac in faculties if fac['uni_id'] == uni['id']]
+            for fac in uni['faculties']:
+                fac['departments'] = [dept for dept in departments if dept['fac_id'] == fac['id']]
+                
+        return jsonify(universities)
+    finally:
+        cursor.close()
+        conn.close()
 
 
 

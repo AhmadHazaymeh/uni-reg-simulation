@@ -32,8 +32,8 @@ export const api = {
     publishSchedule: () => axios.post(`${API_BASE}/sections/publish`),
 
     // Registration and Voting
-    createStudent: (data) => axios.post(`${API_BASE}/students`, data),
-    loginStudent: (data) => axios.post(`${API_BASE}/student/login`, data),
+createStudent: (data) => axios.post(`${API_BASE}/students`, data),
+    loginStudent: (data) => axios.post(`${API_BASE}/student/login`, data),    
     submitVote: (voteData) => axios.post(`${API_BASE}/student/vote`, voteData),
     getStudentVotes: (studentId) => axios.get(`${API_BASE}/student/${studentId}/votes`),
     removeVote: (voteData) => axios.post(`${API_BASE}/student/vote/remove`, voteData),
@@ -41,8 +41,7 @@ export const api = {
    //admin
    
     // جلب قائمة الموظفين
-    getStaff: () => axios.get(`${API_BASE}/admin/staff`),
-    
+getStaff: (uni_id) => axios.get(`${API_BASE}/admin/staff?uni_id=${uni_id}`),    
     // إضافة موظف جديد (أدمن، رئيس قسم، مدخل بيانات)
     addStaff: (staffData) => axios.post(`${API_BASE}/admin/add-staff`, staffData),
     
@@ -54,23 +53,21 @@ export const api = {
 deleteStaff: (staffId) => axios.delete(`${API_BASE}/staff/${staffId}`),
     
     // جلب قائمة الطلاب لعرضها للأدمن
-    getAdminStudents: () => axios.get(`${API_BASE}/admin/students`),
-    
+getAdminStudents: (uni_id) => axios.get(`${API_BASE}/admin/students?uni_id=${uni_id}`),    
     // تعديل بيانات طالب (الاسم، الإيميل، الخطة)
     updateStudent: (studentId, data) => axios.put(`${API_BASE}/admin/students/${studentId}`, data),
 
-    getDepartments: () => axios.get(`${API_BASE}/admin/departments`),
-
+getDepartments: (uni_id) => axios.get(`${API_BASE}/admin/departments?uni_id=${uni_id}`),
 //hod
 getHODAnalytics: (deptId) => axios.get(`${API_BASE}/hod/analytics`, { params: { dept_id: deptId } }),
-getHODFinalReport: (deptId) => axios.get(`${API_BASE}/hod/final_report`, { params: { dept_id: deptId } }), // السطر الجديد هنا
+getHODFinalReport: (deptId) => axios.get(`${API_BASE}/hod/final_report`, { params: { dept_id: deptId } }), 
 
 
 
+getUniversities: () => axios.get(`${API_BASE}/universities`),
 
 
-
-
+loginStaff: (data) => axios.post(`${API_BASE}/staff/login`, data),
 
 
 

@@ -36,24 +36,30 @@ def check_schedule_conflict(cursor, days, start_time, end_time, room_id=None, in
 
 
 #login_staff
-def login_staff_service(email, password): #email لـ identifier  غيرنا 
+def login_staff_service(email, password, uni_id): # التعديل 1: إضافة uni_id
+    if not uni_id:
+        return {"status": "error", "message": "يجب تحديد الجامعة أولاً"}
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        
+        # التعديل 2: إضافة uni_id للبحث لضمان العزل التام
         query = """
-            SELECT staff_id, name, email, role, dept_id 
+            SELECT staff_id, name, email, role, dept_id, uni_id 
             FROM staff 
-            WHERE (email = %s OR official_id = %s) AND password = %s
+            WHERE (email = %s OR official_id = %s) AND password = %s AND uni_id = %s
         """
         
-        cursor.execute(query, (email, email, password))
+        # تمرير uni_id في الـ parameters
+        cursor.execute(query, (email, email, password, uni_id))
         user = cursor.fetchone()
 
         if user:
+            # التعديل 3: تضمين رقم الجامعة في التوكن لزيادة الأمان
             token = jwt.encode({
                 'staff_id': user['staff_id'],
                 'role': user['role'],
+                'uni_id': user['uni_id'],
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
             }, SECRET_KEY, algorithm="HS256")
             
@@ -63,25 +69,37 @@ def login_staff_service(email, password): #email لـ identifier  غيرنا
                 "user": {
                     "name": user['name'], 
                     "role": user['role'], 
-                    "dept_id": user['dept_id'] # هذا الرقم هو مفتاح واجهة رئيس القسم
+                    "dept_id": user['dept_id'], # مفتاح واجهة رئيس القسم ومدخل البيانات
+                    "uni_id": user['uni_id']    # إرجاع رقم الجامعة للفرونت إند
                 }
             }
         
-        return {"status": "error", "message": "بيانات الدخول غير صحيحة"}
+        return {"status": "error", "message": "بيانات الدخول غير صحيحة أو لا تنتمي لهذه الجامعة"}
     finally:
         cursor.close()
         conn.close()
 
 
-def login_student_service(student_id, password):
+def login_student_service(student_id, password, uni_id): # التعديل: تمرير uni_id
+    if not uni_id:
+        return {"status": "error", "message": "يجب تحديد الجامعة أولاً"}
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        query = "SELECT student_id, name, email, plan_id, dept_id FROM student WHERE student_id = %s AND password = %s"
-        cursor.execute(query, (student_id, password))
+        # التعديل: التحقق من بيانات الدخول مدموجة مع رقم الجامعة المختارة
+        query = "SELECT student_id, name, email, plan_id, dept_id, uni_id FROM student WHERE student_id = %s AND password = %s AND uni_id = %s"
+        cursor.execute(query, (student_id, password, uni_id))
         student = cursor.fetchone()
+        
         if student:
-            token = jwt.encode({'student_id': student['student_id'], 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)}, SECRET_KEY, algorithm="HS256")
+            # التعديل: تضمين uni_id داخل التوكن لزيادة الأمان
+            token = jwt.encode({
+                'student_id': student['student_id'], 
+                'uni_id': student['uni_id'], 
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            }, SECRET_KEY, algorithm="HS256")
+            
             return {
                 "status": "success",
                 "token": token,
@@ -89,10 +107,11 @@ def login_student_service(student_id, password):
                     "name": student['name'], 
                     "id": student['student_id'],
                     "plan_id": student['plan_id'],
-                    "dept_id": student['dept_id'] 
+                    "dept_id": student['dept_id'],
+                    "uni_id": student['uni_id'] # إرجاع رقم الجامعة للفرونت إند
                 }
             }
-        return {"status": "error", "message": "الرقم الجامعي أو كلمة المرور غير صحيحة"}
+        return {"status": "error", "message": "الرقم الجامعي أو كلمة المرور غير صحيحة لهذه الجامعة"}
     finally:
         cursor.close()
         conn.close()
@@ -445,26 +464,33 @@ def publish_schedule_service():
 
 # Registration st
 
-def create_student_service(data):   #sign up
+def create_student_service(data):   # sign up
+    uni_id = data.get('uni_id')
+    if not uni_id:
+        return {"status": "error", "message": "يجب تحديد الجامعة أولاً"}
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True) 
     try:
-        query_check = "SELECT student_id, email FROM student WHERE student_id = %s OR email = %s"
-        cursor.execute(query_check, (data['student_id'], data['email']))
+        # التعديل الأول: التحقق من التكرار داخل نفس الجامعة فقط (باستخدام uni_id)
+        query_check = "SELECT student_id, email FROM student WHERE (student_id = %s OR email = %s) AND uni_id = %s"
+        cursor.execute(query_check, (data['student_id'], data['email'], uni_id))
         existing_student = cursor.fetchone()
 
         if existing_student:
             if existing_student['student_id'] == data['student_id']:
-                return {"status": "error", "message": "عذراً، هذا الرقم الجامعي مسجل مسبقاً"}
+                return {"status": "error", "message": "عذراً، هذا الرقم الجامعي مسجل مسبقاً في هذه الجامعة"}
             if existing_student['email'] == data['email']:
-                return {"status": "error", "message": "عذراً، هذا البريد الإلكتروني مستخدم بالفعل"}
+                return {"status": "error", "message": "عذراً، هذا البريد الإلكتروني مستخدم بالفعل في هذه الجامعة"}
 
-        query_insert = "INSERT INTO student (student_id, name, email, password) VALUES (%s, %s, %s, %s)"
+        # التعديل الثاني: إضافة uni_id لعملية الإدخال
+        query_insert = "INSERT INTO student (student_id, name, email, password, uni_id) VALUES (%s, %s, %s, %s, %s)"
         cursor.execute(query_insert, (
             data['student_id'], 
             data.get('full_name', 'طالب جديد'),
             data['email'], 
-            data['password']
+            data['password'],
+            uni_id
         ))
         
         conn.commit()
@@ -476,7 +502,6 @@ def create_student_service(data):   #sign up
     finally:
         cursor.close()
         conn.close()
-
 
 def submit_student_vote_service(data):
     conn = get_db_connection()
@@ -574,11 +599,10 @@ def delete_prerequisite_service(plan_id, course_id, prereq_id, req_type):
 
 
 #admin
-def admin_get_all_staff_service():
+def admin_get_all_staff_service(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # أضفنا s.dept_id 
         query = """
             SELECT 
                 s.staff_id, 
@@ -590,15 +614,16 @@ def admin_get_all_staff_service():
                 d.dept_name 
             FROM staff s
             LEFT JOIN department d ON s.dept_id = d.dept_id
+            WHERE s.uni_id = %s
         """
-        cursor.execute(query)
+        cursor.execute(query, (uni_id,))
         return cursor.fetchall() 
     finally:
         cursor.close()
         conn.close()
 
 
-def admin_get_all_students_service():
+def admin_get_all_students_service(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary = True)
     try:
@@ -606,8 +631,9 @@ def admin_get_all_students_service():
             SELECT s.student_id, s.name, s.email, p.plan_name 
             FROM student s
             LEFT JOIN studyplan p ON s.plan_id = p.plan_id
+            WHERE s.uni_id = %s
         """
-        cursor.execute(query)
+        cursor.execute(query, (uni_id,))
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -618,17 +644,26 @@ def admin_get_all_students_service():
 
 
 def admin_add_staff_service(data):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM staff WHERE email = %s OR official_id = %s", 
-                       (data['email'], data['official_id']))
-        if cursor.fetchone():
-            return {"status": "error", "message": "الإيميل أو الرقم الوظيفي موجود مسبقاً"}
+    # جلب رقم الجامعة من البيانات المرسلة من الفرونت إند
+    uni_id = data.get('uni_id')
+    
+    if not uni_id:
+        return {"status": "error", "message": "عذراً، يجب تحديد الجامعة لإتمام عملية الإضافة"}
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # التحقق من أن الموظف غير مسجل مسبقاً في هذه الجامعة
+        cursor.execute("SELECT * FROM staff WHERE (email = %s OR official_id = %s) AND uni_id = %s", 
+                       (data['email'], data['official_id'], uni_id))
+        
+        if cursor.fetchone():
+            return {"status": "error", "message": "الإيميل أو الرقم الوظيفي موجود مسبقاً في هذه الجامعة"}
+
+        # إضافة الموظف مع ربطه برقم الجامعة (uni_id)
         query = """
-            INSERT INTO staff (official_id, name, email, password, role, dept_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO staff (official_id, name, email, password, role, dept_id, uni_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             data['official_id'], 
@@ -636,10 +671,13 @@ def admin_add_staff_service(data):
             data['email'], 
             data['password'], 
             data['role'], 
-            data.get('dept_id') 
+            data.get('dept_id'),
+            uni_id # القيمة الجديدة التي تضمن العزل
         ))
+        
         conn.commit()
-        return {"status": "success", "message": "تمت إضافة الموظف بنجاح"}
+        return {"status": "success", "message": "تمت إضافة الموظف وربطه بالجامعة بنجاح"}
+    
     except Exception as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
@@ -700,13 +738,19 @@ def admin_update_student_service(student_id, data):
 
 
 
-def admin_get_all_departments_service():
+# Your current services.py code
+def admin_get_all_departments_service(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # نجلب المعرف والاسم فقط لعرضهم في القائمة
-        query = "SELECT dept_id, dept_name FROM department"
-        cursor.execute(query)
+        # Use JOIN to filter departments based on the faculty's uni_id
+        query = """
+            SELECT d.dept_id, d.dept_name, d.fac_id 
+            FROM department d
+            JOIN faculty f ON d.fac_id = f.fac_id
+            WHERE f.uni_id = %s
+        """
+        cursor.execute(query, (uni_id,))
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -872,6 +916,17 @@ def get_hod_final_report_service(dept_id):
         cursor.close()
         conn.close()
 
+
+def get_university_settings(uni_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # جلب القوانين الخاصة بالجامعة من الجدول الجديد
+        cursor.execute("SELECT email_domain, id_pattern FROM university WHERE uni_id = %s", (uni_id,))
+        return cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
         
 
 

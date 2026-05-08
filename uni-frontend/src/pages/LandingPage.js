@@ -1,30 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ShieldCheck, ArrowRight, Building, BookOpen, MapPin } from 'lucide-react';
-import { universitiesData } from './universitiesData';
+import { api } from '../api/api'; // استيراد الـ API بدلاً من الملف الثابت
 
 const LandingPage = () => {
     const navigate = useNavigate();
+    
+    const [universities, setUniversities] = useState([]); // حالة لتخزين الجامعات
+    const [loading, setLoading] = useState(true); // حالة التحميل
     
     const [selectedUniId, setSelectedUniId] = useState('');
     const [selectedFacId, setSelectedFacId] = useState('');
     const [selectedDeptId, setSelectedDeptId] = useState('');
 
-    const selectedUni = universitiesData.find(u => u.id === selectedUniId);
-    const selectedFac = selectedUni?.faculties.find(f => f.id === selectedFacId);
-    const selectedDept = selectedFac?.departments.find(d => d.id.toString() === selectedDeptId.toString());
+    // جلب البيانات من السيرفر عند تشغيل الصفحة
+    useEffect(() => {
+        const fetchUnis = async () => {
+            try {
+                const res = await api.getUniversities();
+                setUniversities(res.data);
+            } catch (err) {
+                console.error("خطأ في جلب بيانات الجامعات", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUnis();
+    }, []);
+
+    const selectedUni = universities.find(u => u.id.toString() === selectedUniId.toString());
+    const selectedFac = selectedUni?.faculties?.find(f => f.id.toString() === selectedFacId.toString());
+    const selectedDept = selectedFac?.departments?.find(d => d.id.toString() === selectedDeptId.toString());
+
+    // تحديث دالة تغيير الجامعة لتخزين البيانات في localStorage
+    const handleUniChange = (e) => {
+        const uniId = e.target.value;
+        setSelectedUniId(uniId);
+        setSelectedFacId('');
+        setSelectedDeptId('');
+        
+        const uni = universities.find(u => u.id.toString() === uniId.toString());
+        if (uni) {
+            localStorage.setItem('selected_uni_id', uni.id);
+            localStorage.setItem('global_university_name', uni.name);
+        }
+    };
 
     const handleDeptChange = (e) => {
         const deptId = e.target.value;
         setSelectedDeptId(deptId);
         
         if (deptId && selectedUni && selectedFac) {
-            const dept = selectedFac.departments.find(d => d.id.toString() === deptId);
-            localStorage.setItem('global_university_name', selectedUni.name);
+            const dept = selectedFac.departments.find(d => d.id.toString() === deptId.toString());
             localStorage.setItem('global_faculty_name', selectedFac.name);
             localStorage.setItem('target_dept_id', dept.id); 
         }
     };
+
+    if (loading) {
+        return (
+            <div style={styles.container}>
+                <div style={{textAlign: 'center', color: '#2563eb', fontWeight: 'bold'}}>
+                    جاري الاتصال بقاعدة البيانات لجلب الجامعات...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.container}>
@@ -45,9 +86,9 @@ const LandingPage = () => {
                     {/* اختيار الجامعة */}
                     <div style={styles.inputGroup}>
                         <label style={styles.label}><Building size={16}/> اختر الجامعة:</label>
-                        <select style={styles.select} value={selectedUniId} onChange={(e) => { setSelectedUniId(e.target.value); setSelectedFacId(''); setSelectedDeptId(''); }}>
+                        <select style={styles.select} value={selectedUniId} onChange={handleUniChange}>
                             <option value="">-- يرجى اختيار الجامعة --</option>
-                            {universitiesData.map(uni => (
+                            {universities.map(uni => (
                                 <option key={uni.id} value={uni.id}>{uni.name}</option>
                             ))}
                         </select>
@@ -58,7 +99,7 @@ const LandingPage = () => {
                         <label style={styles.label}><BookOpen size={16}/> اختر الكلية:</label>
                         <select style={styles.select} value={selectedFacId} onChange={(e) => { setSelectedFacId(e.target.value); setSelectedDeptId(''); }}>
                             <option value="">-- يرجى اختيار الكلية --</option>
-                            {selectedUni?.faculties.map(fac => (
+                            {selectedUni?.faculties?.map(fac => (
                                 <option key={fac.id} value={fac.id}>{fac.name}</option>
                             ))}
                         </select>
@@ -69,7 +110,7 @@ const LandingPage = () => {
                         <label style={styles.label}><MapPin size={16}/> اختر القسم الأكاديمي:</label>
                         <select style={styles.select} value={selectedDeptId} onChange={handleDeptChange}>
                             <option value="">-- يرجى اختيار القسم --</option>
-                            {selectedFac?.departments.map(dept => (
+                            {selectedFac?.departments?.map(dept => (
                                 <option key={dept.id} value={dept.id}>{dept.name}</option>
                             ))}
                         </select>
@@ -113,6 +154,7 @@ const LandingPage = () => {
     );
 };
 
+// ... الستايلات (styles) تبقى كما هي بالظبط بدون أي تغيير ...
 const styles = {
     container: {
         minHeight: '100vh',

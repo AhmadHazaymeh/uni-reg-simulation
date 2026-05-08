@@ -1,22 +1,32 @@
 import re
 
-def validate_login_data(data):  #staff
+def validate_login_data(data):  # staff login
     errors = []
-    if not data.get('email'): 
-        errors.append("البريد الإلكتروني مطلوب")
+    # الفرونت إند يرسل الحقل باسم email، لكنه قد يحتوي على الرقم الوظيفي أو البريد
+    identifier = str(data.get('email', '')).strip() 
+    
+    if not identifier: 
+        errors.append("البريد الإلكتروني أو الرقم الوظيفي مطلوب")
     if not data.get('password'): 
         errors.append("كلمة المرور مطلوبة")
     return errors
 
-def validate_student_login_data(data):
+def validate_student_login_data(data, id_pattern): # دالة تسجيل الدخول المحدثة
     errors = []
-    if not data.get('student_id'):
+    student_id = str(data.get('student_id', '')).strip()
+    
+    if not student_id:
         errors.append("الرقم الجامعي مطلوب للدخول")
+    # إضافة تحقق من النمط حتى عند تسجيل الدخول لضمان عزل المدخلات
+    elif not re.match(id_pattern, student_id):
+        errors.append("عذراً، هذا الرقم لا يتبع تنسيق الأرقام الجامعية لهذه الجامعة")
+        
     if not data.get('password'):
         errors.append("كلمة المرور مطلوبة")
+        
     return errors
 
-def validate_student_data(data): #register 
+def validate_student_data(data, email_domain, id_pattern): # دالة التسجيل المحدثة
     errors = []
     student_id = str(data.get('student_id', '')).strip()
     email = str(data.get('email', '')).strip()
@@ -24,16 +34,19 @@ def validate_student_data(data): #register
     
     if not student_id:
         errors.append("الرقم الجامعي مطلوب")
-    elif not re.match(r'^1[0-9]{5}$', student_id):
-        errors.append("يجب أن يتكون الرقم الجامعي من 6 خانات ويبدأ بالرقم 1")
+    elif not re.match(id_pattern, student_id): # التحقق الديناميكي من النمط
+        errors.append("صيغة الرقم الجامعي غير صحيحة لهذه الجامعة")
+
     if not email:
         errors.append("البريد الإلكتروني مطلوب")
-    elif not email.endswith('@just.edu.jo'):
-        errors.append("يجب استخدام البريد الإلكتروني الجامعي الرسمي (@just.edu.jo)")
+    elif not email.endswith(email_domain): # التحقق الديناميكي من الدومين
+        errors.append(f"يجب استخدام البريد الإلكتروني الجامعي الرسمي ({email_domain})")
+
     if not password:
         errors.append("كلمة المرور مطلوبة")
     elif len(password) < 6:
         errors.append("كلمة المرور يجب أن تكون 6 خانات على الأقل")
+        
     return errors
 
 def validate_course_data(data):
