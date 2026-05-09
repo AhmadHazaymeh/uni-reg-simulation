@@ -824,7 +824,7 @@ def get_hod_analytics_service(dept_id):
 
 
 
-# --- إضافة ميزة التقرير النهائي لرئيس القسم ---
+# ---  ميزة التقرير النهائي لرئيس القسم ---
 def get_hod_final_report_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -862,43 +862,38 @@ def get_hod_final_report_service(dept_id):
 
             sorted_sections = sorted(info['sections'], key=lambda x: x['vote_count'], reverse=True)
             
-            recommended_sections_count = max(1, (total_votes // 50) + (1 if total_votes % 50 >= 15 else 0))
-
             proposed_sections = []
-            for i in range(recommended_sections_count):
-                if i < len(sorted_sections):
-                    best_sec = sorted_sections[i]
-                    
-                    actual_capacity = best_sec['capacity'] if best_sec['capacity'] else 50
-                    
-                    proposed_sections.append({
-                        'days': best_sec['days'],
-                        'start_time': str(best_sec['start_time']),
-                        'end_time': str(best_sec['end_time']),
-                        'capacity': actual_capacity, 
-                        'vote_count': best_sec['vote_count']
-                    })
-                else:
-                    proposed_sections.append({
-                        'days': 'يُحدد لاحقاً', 
-                        'start_time': 'يُحدد',
-                        'end_time': 'يُحدد',
-                        'capacity': 50, 
-                        'vote_count': 0
-                    })
-
             insights = []
-            if recommended_sections_count > len(info['sections']):
-                insights.append(f"إقبال كثيف جداً! المادة تحتاج إلى فتح {recommended_sections_count - len(info['sections'])} شُعب إضافية لتغطية عدد الطلاب المتقدمين.")
+            dropped_sections_count = 0
+            full_sections_count = 0
+
+            for sec in sorted_sections:
+                actual_capacity = sec['capacity'] if sec['capacity'] else 50
+                
+                if sec['vote_count'] > 0:
+                    proposed_sections.append({
+                        'days': sec['days'],
+                        'start_time': str(sec['start_time']),
+                        'end_time': str(sec['end_time']),
+                        'capacity': actual_capacity, 
+                        'vote_count': sec['vote_count']
+                    })
+                    
+                    if sec['vote_count'] >= actual_capacity:
+                        full_sections_count += 1
+                else:
+                    dropped_sections_count += 1
+
+            recommended_sections_count = len(proposed_sections)
             
-            zero_vote_sections = [s for s in info['sections'] if s['vote_count'] == 0]
-            if zero_vote_sections:
-                insights.append(f"هناك {len(zero_vote_sections)} شُعب مطروحة لم يصوت لها أحد، يُفضل إلغاؤها أو تغيير أوقاتها لتوفير القاعات والمحاضرين.")
+            if recommended_sections_count == 0:
+                continue
+
+            if full_sections_count > 0:
+                insights.append(f"تنبيه: هناك {full_sections_count} شُعب امتلأت بالكامل ووصلت لسعتها القصوى. يُرجح وجود طلاب آخرين لم يتمكنوا من التصويت، يُنصح بفتح شُعب موازية لها.")
             
-            
-            high_demand_sections = [s for s in info['sections'] if s['capacity'] and s['vote_count'] > s['capacity']]
-            if high_demand_sections:
-                insights.append(f"أوقات الدوام ({str(high_demand_sections[0]['start_time'])}) عليها طلب يتجاوز السعة، يُنصح بنقل هذه الشعبة إلى مدرج أكبر.")
+            if dropped_sections_count > 0:
+                insights.append(f"تم استبعاد {dropped_sections_count} شُعب من الجدول المقترح لعدم وجود أي إقبال عليها. يُفضل إلغاؤها لتوفير القاعات.")
 
             final_report.append({
                 'course_code': info['course_code'],
@@ -910,6 +905,7 @@ def get_hod_final_report_service(dept_id):
             })
 
         return {"status": "success", "report": final_report}
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
@@ -921,7 +917,6 @@ def get_university_settings(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # جلب القوانين الخاصة بالجامعة من الجدول الجديد
         cursor.execute("SELECT email_domain, id_pattern FROM university WHERE uni_id = %s", (uni_id,))
         return cursor.fetchone()
     finally:
