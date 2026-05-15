@@ -654,15 +654,40 @@ def get_student_votes_service(student_id):
 
 def remove_vote_service(student_id, section_id):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
-        query = "DELETE FROM vote WHERE student_id = %s AND section_id = %s"
-        cursor.execute(query, (student_id, section_id))
+        # 1. حذف صوت الطالب المنسحب
+        cursor.execute("DELETE FROM vote WHERE student_id = %s AND section_id = %s", (student_id, section_id))
+        
+        # 2. البحث عن أول طالب في قائمة الانتظار (FIFO)
+        cursor.execute("SELECT * FROM waitlist WHERE section_id = %s ORDER BY created_at ASC LIMIT 1", (section_id,))
+        first_in_line = cursor.fetchone()
+        
+        if first_in_line:
+            lucky_student = first_in_line['student_id']
+            
+            # سحبه من قائمة الانتظار وتسجيل صوته رسمياً
+            cursor.execute("DELETE FROM waitlist WHERE waitlist_id = %s", (first_in_line['waitlist_id'],))
+            cursor.execute("INSERT INTO vote (student_id, section_id) VALUES (%s, %s)", (lucky_student, section_id))
+            
+            # جلب بيانات المادة لإرسال إشعار للطالب المحظوظ
+            cursor.execute("""
+                SELECT c.title, s.section_num, c.dept_id 
+                FROM section s JOIN course c ON s.course_id = c.course_id 
+                WHERE s.section_id = %s
+            """, (section_id,))
+            sec_info = cursor.fetchone()
+            
+            if sec_info:
+                msg = f"مبروك! توفر مقعد وتم تسجيلك تلقائياً في الشعبة #{sec_info['section_num']} لمادة ({sec_info['title']}) من قائمة الانتظار."
+                cursor.execute("INSERT INTO student_notification (student_id, message, dept_id, is_published) VALUES (%s, %s, %s, 1)", 
+                               (lucky_student, msg, sec_info['dept_id']))
+
         conn.commit()
-        return {"status": "success", "message": "تم سحب التصويت بنجاح"}
+        return {"status": "success"}
     except Exception as e:
         conn.rollback()
-        return {"status": "error", "message": f"خطأ في قاعدة البيانات: {str(e)}"}
+        return {"status": "error", "message": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -1157,6 +1182,49 @@ def publish_schedule_service(dept_id):
     except Exception as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+def join_waitlist_service(student_id, section_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. التحقق من سعة الوايت ليست (الحد الأقصى 10)
+        cursor.execute("SELECT COUNT(*) as count FROM waitlist WHERE section_id = %s", (section_id,))
+        if cursor.fetchone()['count'] >= 10:
+            return {"status": "error", "message": "قائمة الانتظار ممتلئة (10 طلاب كحد أقصى)."}
+
+        # 2. إضافة الطالب
+        cursor.execute("INSERT INTO waitlist (student_id, section_id) VALUES (%s, %s)", (student_id, section_id))
+        conn.commit()
+        return {"status": "success", "message": "تم إضافتك لقائمة الانتظار بنجاح"}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": "أنت موجود مسبقاً في قائمة الانتظار لهذه الشعبة"}
+    finally:
+        cursor.close()
+        conn.close()
+
+def leave_waitlist_service(student_id, section_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM waitlist WHERE student_id = %s AND section_id = %s", (student_id, section_id))
+        conn.commit()
+        return {"status": "success"}
+    finally:
+        cursor.close()
+        conn.close()
+
+def get_student_waitlist_service(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT section_id FROM waitlist WHERE student_id = %s", (student_id,))
+        return [row['section_id'] for row in cursor.fetchall()]
     finally:
         cursor.close()
         conn.close()

@@ -75,10 +75,15 @@ loginStaff: (data) => axios.post(`${API_BASE}/staff/login`, data),
 
 
 
-// Notifications (جديد)
+// Notifications 
     getNotifications: (studentId) => axios.get(`${API_BASE}/student/${studentId}/notifications`),
     markNotificationsRead: (studentId) => axios.post(`${API_BASE}/student/${studentId}/notifications/read`),
     publishSchedule: (data) => axios.post(`${API_BASE}/publish-schedule`, data),
 
+
+// Waitlist 
+    joinWaitlist: (data) => axios.post(`${API_BASE}/waitlist`, data),
+    leaveWaitlist: (studentId, sectionId) => axios.delete(`${API_BASE}/waitlist`, { params: { student_id: studentId, section_id: sectionId } }),
+    getWaitlist: (studentId) => axios.get(`${API_BASE}/waitlist/${studentId}`),
 
 };

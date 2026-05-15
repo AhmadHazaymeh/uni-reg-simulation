@@ -16,6 +16,7 @@ const StudentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [userVotes, setUserVotes] = useState([]); 
     const [notifications, setNotifications] = useState([]);
+    const [waitlist, setWaitlist] = useState([]);
   
     const studentUser = JSON.parse(localStorage.getItem('student_user') || '{}');
 
@@ -64,6 +65,14 @@ const StudentDashboard = () => {
                 const votesRes = await api.getStudentVotes(studentUser.id);
                 setUserVotes(votesRes.data.map(v => v.section_id));
             } catch (vErr) { console.warn("لا يمكن جلب تصويتات الطالب حالياً"); }
+
+            try {
+    const wlRes = await api.getWaitlist(studentUser.id);
+    setWaitlist(wlRes.data);
+} catch (e) {}
+
+
+
 
             const planId = studentUser.plan_id || 1; 
             const planRes = await api.getPlanCourses(planId);
@@ -143,7 +152,25 @@ const StudentDashboard = () => {
 
 
 
-
+const handleWaitlistToggle = async (sectionId, isWaitlisted) => {
+    try {
+        if (isWaitlisted) {
+            await api.leaveWaitlist(studentUser.id, sectionId);
+            setWaitlist(prev => prev.filter(id => id !== sectionId));
+            Swal.fire({ icon: 'info', title: 'تم', text: 'خرجت من قائمة الانتظار', timer: 1500, showConfirmButton: false });
+        } else {
+            const res = await api.joinWaitlist({ student_id: studentUser.id, section_id: sectionId });
+            if (res.data.status === 'success') {
+                setWaitlist(prev => [...prev, sectionId]);
+                Swal.fire({ icon: 'success', title: 'تم الانضمام', text: 'أنت الآن في قائمة الانتظار، سيتم إشعارك فور توفر مقعد.', confirmButtonText: 'حسناً' });
+            } else {
+                Swal.fire({ icon: 'warning', title: 'عذراً', text: res.data.message, confirmButtonText: 'حسناً' });
+            }
+        }
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'خطأ', text: 'فشل الاتصال بالسيرفر' });
+    }
+};
 
 
 
@@ -404,7 +431,7 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                                                                         <td style={styles.td}>
                                                                             <div style={styles.analyticsWrapper}>
                                                                                 <div style={styles.progressTrack}>
-<div style={styles.progressTrack}>
+                                                                   <div style={styles.progressTrack}>
     <div style={{
         ...styles.progressBar, 
         width: `${votePercent}%`, 
@@ -416,24 +443,45 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                                                                                <span style={styles.percentText}>{votePercent}% ({section.current_votes} صوت من أصل {section.capacity || 'غير محدد'})</span>
                                                                             </div>
                                                                         </td>
-                                                                        <td style={styles.td}>
+                                                                       <td style={styles.td}>
     {(() => {
         const isFull = section.capacity > 0 && section.current_votes >= section.capacity;
+        const isWaitlisted = waitlist.includes(section.section_id);
         
         return (
-            <button
-                disabled={!isVoted && isFull} 
-                style={{
-                    ...styles.voteBtn, 
-                    backgroundColor: isVoted ? '#ef4444' : (isFull ? '#94a3b8' : '#6366f1'), 
-                    cursor: (!isVoted && isFull) ? 'not-allowed' : 'pointer',
-                    opacity: (!isVoted && isFull) ? 0.6 : 1
-                }}
-                onClick={() => handleVoteToggle(section.course_id, section.section_id, course.title, section.section_num, section.current_votes, section.capacity)}
-            >
-                {isVoted ? <X size={16} /> : (isFull ? <AlertCircle size={16} /> : <CheckCircle size={16} />)}
-                {isVoted ? 'سحب' : (isFull ? 'ممتلئة' : 'تصويت')}
-            </button>
+            // التعديل هنا: تحويل الاتجاه إلى أفقي (row) مع توسيط العناصر
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                <button
+                    disabled={!isVoted && isFull} 
+                    style={{
+                        ...styles.voteBtn, 
+                        backgroundColor: isVoted ? '#ef4444' : (isFull ? '#94a3b8' : '#6366f1'), 
+                        cursor: (!isVoted && isFull) ? 'not-allowed' : 'pointer',
+                        opacity: (!isVoted && isFull) ? 0.6 : 1,
+                        whiteSpace: 'nowrap' // لمنع تكسر النص
+                    }}
+                    onClick={() => handleVoteToggle(section.course_id, section.section_id, course.title, section.section_num, section.current_votes, section.capacity)}
+                >
+                    {isVoted ? <X size={16} /> : (isFull ? <AlertCircle size={16} /> : <CheckCircle size={16} />)}
+                    {isVoted ? 'سحب' : (isFull ? 'ممتلئة' : 'تصويت')}
+                </button>
+
+                {/* زر الوايت ليست يظهر بجانب الزر الأول إذا كانت ممتلئة والطالب مش مصوت فيها */}
+                {isFull && !isVoted && (
+                    <button
+                        style={{
+                            ...styles.voteBtn, 
+                            backgroundColor: isWaitlisted ? '#ef4444' : '#f59e0b', // أحمر للانسحاب، برتقالي للانضمام
+                            fontSize: '12px',
+                            padding: '6px 10px',
+                            whiteSpace: 'nowrap' // لمنع تكسر النص
+                        }}
+                        onClick={() => handleWaitlistToggle(section.section_id, isWaitlisted)}
+                    >
+                        {isWaitlisted ? 'خروج من الانتظار' : 'انضمام للانتظار'}
+                    </button>
+                )}
+            </div>
         );
     })()}
 </td>

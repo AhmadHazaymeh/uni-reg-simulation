@@ -409,6 +409,24 @@ def mark_notifications_read(student_id):
 
 
 
+@app.route('/api/waitlist', methods=['POST'])
+def join_waitlist():
+    data = request.json
+    return jsonify(services.join_waitlist_service(data['student_id'], data['section_id']))
+
+@app.route('/api/waitlist', methods=['DELETE'])
+def leave_waitlist():
+    student_id = request.args.get('student_id')
+    section_id = request.args.get('section_id')
+    return jsonify(services.leave_waitlist_service(student_id, section_id))
+
+@app.route('/api/waitlist/<student_id>', methods=['GET'])
+def get_student_waitlist(student_id):
+    return jsonify(services.get_student_waitlist_service(student_id))
+
+
+
+
 
 
 
