@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     School, UserCog, Users, UserPlus, Trash2, Edit, 
-    Search, Mail, Hash, X, Save, KeyRound, ChevronLeft, LayoutDashboard, Settings
+    Search, Mail, Hash, X, Save, KeyRound, ChevronLeft, LayoutDashboard, Settings, Building2, PlusCircle
 } from 'lucide-react';
 import { api } from '../api/api';
 import Swal from 'sweetalert2';
@@ -14,6 +14,11 @@ const AdminDashboard = () => {
     const [students, setStudents] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [uniName, setUniName] = useState('');
+
+    // Academic Structure State
+    const [structureData, setStructureData] = useState([]);
+    const [showStructModal, setShowStructModal] = useState(false);
+    const [structForm, setStructForm] = useState({type: '', id: null, name: '', email_domain: '', id_pattern: '', parent_id: null});
 
     // Modals
     const [showStaffModal, setShowStaffModal] = useState(false);
@@ -40,15 +45,17 @@ const AdminDashboard = () => {
         }
 
         try {
-            const [deptRes, staffRes, studentRes] = await Promise.all([
+            const [deptRes, staffRes, studentRes, structRes] = await Promise.all([
                 api.getDepartments(uniId),
                 api.getStaff(uniId),
-                api.getAdminStudents(uniId)
+                api.getAdminStudents(uniId),
+                api.getUniversities()
             ]);
             
             setDepartments(deptRes.data || []);
             setAllStaff(staffRes.data || []);
             setStudents(studentRes.data || []);
+            setStructureData(structRes.data || []);
         } catch (err) { 
             console.error("Error fetching data", err);
         }
@@ -97,6 +104,56 @@ const AdminDashboard = () => {
         } catch (err) { Swal.fire('خطأ', 'فشل تحديث بيانات الطالب', 'error'); }
     };
 
+    const handleSaveStructure = async (e) => {
+        e.preventDefault();
+        try {
+            let res;
+            if (structForm.type === 'uni') {
+                const data = { uni_name: structForm.name, email_domain: structForm.email_domain, id_pattern: structForm.id_pattern };
+                if (structForm.id) res = await api.updateUniversity(structForm.id, data);
+                else res = await api.createUniversity(data);
+            } else if (structForm.type === 'fac') {
+                const data = { fac_name: structForm.name, uni_id: structForm.parent_id };
+                if (structForm.id) res = await api.updateFaculty(structForm.id, data);
+                else res = await api.createFaculty(data);
+            } else if (structForm.type === 'dept') {
+                const data = { dept_name: structForm.name, fac_id: structForm.parent_id };
+                if (structForm.id) res = await api.updateDepartment(structForm.id, data);
+                else res = await api.createDepartment(data);
+            }
+
+            if (res.data && res.data.status === 'success') {
+                Swal.fire('نجاح', res.data.message, 'success');
+                setShowStructModal(false);
+                fetchData();
+            } else {
+                Swal.fire('خطأ', res.data?.message || 'حدث خطأ', 'error');
+            }
+        } catch (err) { Swal.fire('خطأ', 'حدث خلل أثناء الحفظ', 'error'); }
+    };
+
+    const handleDeleteStructure = async (type, id) => {
+        const result = await Swal.fire({
+            title: 'تأكيد الحذف', text: "هل أنت متأكد من الحذف؟", icon: 'warning',
+            showCancelButton: true, confirmButtonText: 'نعم', cancelButtonText: 'إلغاء'
+        });
+        if (result.isConfirmed) {
+            try {
+                let res;
+                if (type === 'uni') res = await api.deleteUniversity(id);
+                else if (type === 'fac') res = await api.deleteFaculty(id);
+                else if (type === 'dept') res = await api.deleteDepartment(id);
+                
+                if (res.data && res.data.status === 'success') {
+                    Swal.fire('تم!', res.data.message, 'success');
+                    fetchData();
+                } else {
+                    Swal.fire('خطأ', res.data?.message || 'حدث خطأ', 'error');
+                }
+            } catch (err) { Swal.fire('خطأ', 'صار مشكلة بالاتصال للسيرفر', 'error'); }
+        }
+    };
+
     const deleteStaff = async (staffId) => {
         const result = await Swal.fire({
             title: 'متأكد بدك تحذفه؟',
@@ -126,6 +183,7 @@ const AdminDashboard = () => {
                 <div style={styles.logoSection}><Settings size={28}/> <span>لوحة إدارة {uniName}</span></div>
                 <button onClick={() => {setView('depts'); setSelectedDept(null);}} style={view === 'depts' ? styles.navActive : styles.navBtn}><School size={20}/> الأقسام والكادر</button>
                 <button onClick={() => setView('students')} style={view === 'students' ? styles.navActive : styles.navBtn}><Users size={20}/> إدارة الطلاب</button>
+                <button onClick={() => setView('structure')} style={view === 'structure' ? styles.navActive : styles.navBtn}><Building2 size={20}/> الهيكل الأكاديمي</button>
             </div>
 
             <div style={styles.main}>
@@ -226,6 +284,58 @@ const AdminDashboard = () => {
                     </div>
                 )}
 
+                {view === 'structure' && (
+                    <div style={styles.content}>
+                        <div style={styles.headerRow}>
+                            <h2 style={styles.pageTitle}>إدارة الهيكل الأكاديمي (الجامعات والكليات والأقسام)</h2>
+                            <button style={styles.addMiniBtnGreen} onClick={() => { setStructForm({type: 'uni', id: null, name: '', email_domain: '', id_pattern: '', parent_id: null}); setShowStructModal(true); }}>
+                                <PlusCircle size={16}/> إضافة جامعة جديدة
+                            </button>
+                        </div>
+                        {structureData.map(uni => (
+                            <div key={uni.id} style={{...styles.sectionBox, marginBottom: '20px'}}>
+                                <div style={{...styles.sectionHeader, backgroundColor: '#f8fafc', padding: '15px', borderRadius: '10px'}}>
+                                    <h3 style={styles.sectionTitle}><School color="#2563eb"/> {uni.name} ({uni.id})</h3>
+                                    <div style={styles.actions}>
+                                        <button style={styles.addMiniBtn} onClick={() => { setStructForm({type: 'fac', id: null, name: '', parent_id: uni.id}); setShowStructModal(true); }}><PlusCircle size={14}/> كلية</button>
+                                        <button style={styles.editIconBtn} onClick={() => { const ed = uni.email_domain || ''; const ip = uni.id_pattern || ''; setStructForm({type: 'uni', id: uni.id, name: uni.name, email_domain: ed, id_pattern: ip, parent_id: null}); setShowStructModal(true); }}><Edit size={14}/></button>
+                                        <button style={styles.delIconBtn} onClick={() => handleDeleteStructure('uni', uni.id)}><Trash2 size={14}/></button>
+                                    </div>
+                                </div>
+                                
+                                <div style={{paddingRight: '20px', marginTop: '10px'}}>
+                                    {uni.faculties && uni.faculties.map(fac => (
+                                        <div key={fac.id} style={{marginBottom: '15px', borderRight: '2px solid #e2e8f0', paddingRight: '15px'}}>
+                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                                <h4 style={{margin: 0, color: '#334155'}}><Building2 size={16} style={{marginLeft: '5px', verticalAlign: 'middle'}}/> {fac.name}</h4>
+                                                <div style={styles.actions}>
+                                                    <button style={{...styles.addMiniBtn, padding: '4px 8px', fontSize: '11px'}} onClick={() => { setStructForm({type: 'dept', id: null, name: '', parent_id: fac.id}); setShowStructModal(true); }}><PlusCircle size={12}/> قسم</button>
+                                                    <button style={{...styles.editIconBtn, padding: '4px'}} onClick={() => { setStructForm({type: 'fac', id: fac.id, name: fac.name, parent_id: uni.id}); setShowStructModal(true); }}><Edit size={12}/></button>
+                                                    <button style={{...styles.delIconBtn, padding: '4px'}} onClick={() => handleDeleteStructure('fac', fac.id)}><Trash2 size={12}/></button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', paddingRight: '20px'}}>
+                                                {fac.departments && fac.departments.map(dept => (
+                                                    <div key={dept.id} style={{display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', fontSize: '13px'}}>
+                                                        <span>{dept.name}</span>
+                                                        <div style={{display: 'flex', gap: '5px', marginRight: '10px'}}>
+                                                            <button style={{border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer', padding: 0}} onClick={() => { setStructForm({type: 'dept', id: dept.id, name: dept.name, parent_id: fac.id}); setShowStructModal(true); }}><Edit size={12}/></button>
+                                                            <button style={{border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: 0}} onClick={() => handleDeleteStructure('dept', dept.id)}><Trash2 size={12}/></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {(!fac.departments || fac.departments.length === 0) && <span style={{fontSize: '12px', color: '#94a3b8'}}>لا يوجد أقسام.</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!uni.faculties || uni.faculties.length === 0) && <span style={{fontSize: '13px', color: '#94a3b8'}}>لا يوجد كليات مضافة لهذه الجامعة.</span>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* Staff Modal */}
                 {showStaffModal && (
                     <div style={styles.overlay}>
@@ -261,12 +371,36 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Structure Modal */}
+                {showStructModal && (
+                    <div style={styles.overlay}>
+                        <div style={styles.modal}>
+                            <div style={styles.modalHead}>
+                                <h3 style={{margin: 0}}>
+                                    {structForm.id ? 'تعديل ' : 'إضافة '} 
+                                    {structForm.type === 'uni' ? 'جامعة' : structForm.type === 'fac' ? 'كلية' : 'قسم'}
+                                </h3> 
+                                <button style={styles.closeBtn} onClick={() => setShowStructModal(false)}><X size={20}/></button>
+                            </div>
+                            <form onSubmit={handleSaveStructure} style={styles.form}>
+                                <input style={styles.input} value={structForm.name} onChange={e => setStructForm({...structForm, name: e.target.value})} placeholder="الاسم" required />
+                                {structForm.type === 'uni' && (
+                                    <>
+                                        <input style={styles.input} value={structForm.email_domain} onChange={e => setStructForm({...structForm, email_domain: e.target.value})} placeholder="نطاق الإيميل (مثال: @just.edu.jo)" />
+                                        <input style={styles.input} value={structForm.id_pattern} onChange={e => setStructForm({...structForm, id_pattern: e.target.value})} placeholder="نمط الرقم الجامعي (Regex)" />
+                                    </>
+                                )}
+                                <button type="submit" style={styles.saveBtn}>حفظ</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-// هنا جميع الستايلات كاملة ومفصلة، لا تقم بحذف أي سطر منها!
 const styles = {
     container: { display: 'flex', minHeight: '100vh', direction: 'rtl', fontFamily: 'Tajawal, sans-serif', backgroundColor: '#f8fafc' },
     sidebar: { width: '260px', backgroundColor: '#1e293b', color: 'white', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' },

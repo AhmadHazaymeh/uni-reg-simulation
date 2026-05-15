@@ -2,7 +2,7 @@ import jwt
 import datetime
 import mysql.connector
 from database import get_db_connection
-
+from datetime import timedelta
 SECRET_KEY = "JUST_SECRET_2025"
 
 
@@ -969,29 +969,61 @@ def get_hod_analytics_service(dept_id):
 
 
 # ---  ميزة التقرير النهائي لرئيس القسم ---
+def check_time_overlap(days1, start1, end1, days2, start2, end2):
+    if not days1 or not days2 or not start1 or not end1 or not start2 or not end2:
+        return False
+    
+    
+    if not any(d in days2 for d in days1):
+        return False
+        
+   
+    s1 = start1.total_seconds() if isinstance(start1, timedelta) else float(str(start1).replace(':', ''))
+    e1 = end1.total_seconds() if isinstance(end1, timedelta) else float(str(end1).replace(':', ''))
+    s2 = start2.total_seconds() if isinstance(start2, timedelta) else float(str(start2).replace(':', ''))
+    e2 = end2.total_seconds() if isinstance(end2, timedelta) else float(str(end2).replace(':', ''))
+    
+    return (s1 < e2) and (s2 < e1)
+
+
+# ---  ميزة التقرير النهائي لرئيس القسم (النسخة الذكية الشاملة) ---
 def get_hod_final_report_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        # 1. جلب كافة البيانات مع ربط الخطة الدراسية
         query = """
             SELECT c.course_id, c.course_code, c.title,
                    s.section_id, s.section_num, s.days, s.start_time, s.end_time, s.capacity,
-                   (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
+                   (SELECT category FROM plan_course pc WHERE pc.course_id = c.course_id LIMIT 1) as course_category,
+                   (SELECT year_level FROM plan_course pc WHERE pc.course_id = c.course_id LIMIT 1) as course_year_level,
+                   (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count,
+                   (SELECT COUNT(*) FROM waitlist wl WHERE wl.section_id = s.section_id) as waitlist_count
             FROM course c
             JOIN section s ON c.course_id = s.course_id
             WHERE c.dept_id = %s
             ORDER BY c.course_code, s.section_num
         """
         cursor.execute(query, (dept_id,))
-        data = cursor.fetchall()
+        all_sections = cursor.fetchall()
 
+        # 2. تجهيز قائمة "الشعب الإجبارية القوية" لاستخدامها في كشف التعارض
+        popular_mandatory_sections = [
+            sec for sec in all_sections 
+            if sec['course_category'] and 'إجباري' in sec['course_category'] 
+            and sec['capacity'] and (sec['vote_count'] / sec['capacity']) >= 0.6
+        ]
+
+        # 3. تجميع الشعب حسب المادة
         courses_summary = {}
-        for row in data:
+        for row in all_sections:
             cid = row['course_id']
             if cid not in courses_summary:
                 courses_summary[cid] = {
                     'course_code': row['course_code'],
                     'title': row['title'],
+                    'category': row['course_category'] or 'غير محدد',
+                    'year_level': row['course_year_level'] or 0,
                     'total_votes': 0,
                     'sections': []
                 }
@@ -1004,46 +1036,93 @@ def get_hod_final_report_service(dept_id):
             if total_votes == 0:
                 continue 
 
-            sorted_sections = sorted(info['sections'], key=lambda x: x['vote_count'], reverse=True)
+            course_category = info['category']
+            course_year = int(info['year_level'])
+            is_mandatory = 'إجباري' in course_category
             
+            sections = info['sections']
             proposed_sections = []
             insights = []
-            dropped_sections_count = 0
-            full_sections_count = 0
+            
+            waitlisted_sections = []
+            available_sections = []
 
-            for sec in sorted_sections:
-                actual_capacity = sec['capacity'] if sec['capacity'] else 50
+            for sec in sorted(sections, key=lambda x: x['vote_count'], reverse=True):
+                actual_capacity = sec['capacity'] if sec['capacity'] and sec['capacity'] > 0 else 50
+                vote_count = sec['vote_count']
+                waitlist_count = sec['waitlist_count']
                 
-                if sec['vote_count'] > 0:
-                    proposed_sections.append({
-                        'days': sec['days'],
-                        'start_time': str(sec['start_time']),
-                        'end_time': str(sec['end_time']),
-                        'capacity': actual_capacity, 
-                        'vote_count': sec['vote_count']
-                    })
+                if vote_count == 0:
+                    continue
+
+                fill_ratio = vote_count / actual_capacity
+                percent_text = int(fill_ratio * 100)
+                advice = ""
+                
+                if waitlist_count > 0:
+                    waitlisted_sections.append(sec)
+                elif fill_ratio < 0.8:
+                    available_sections.append(sec)
+
+                # ---------------------------------------------------------
+                # الخوارزمية المركزية للقرارات (The Core Brain)
+                # ---------------------------------------------------------
+                
+                if fill_ratio >= 0.8:
+                    if waitlist_count > 0:
+                        advice = f"تُطرح فوراً (ممتلئة). هناك {waitlist_count} طالب بالانتظار."
+                    else:
+                        advice = f"تُطرح فوراً. إقبال ممتاز ({percent_text}%)."
+                    proposed_sections.append(format_section_data(sec, actual_capacity, advice))
                     
-                    if sec['vote_count'] >= actual_capacity:
-                        full_sections_count += 1
-                else:
-                    dropped_sections_count += 1
+                elif fill_ratio >= 0.5:
+                    # خوارزمية التحجيم المكاني
+                    advice = f"إقبال متوسط ({percent_text}%). تُطرح مع تغيير القاعة لأخرى تتسع لـ {vote_count + 5} طالب فقط لتوفير الموارد."
+                    proposed_sections.append(format_section_data(sec, actual_capacity, advice))
+                    
+                else: 
+                    # حالة الإقبال الضعيف جداً (< 50%)
+                    
+                    # 1. كشف التعارض المخفي
+                    conflict_found = False
+                    if is_mandatory:
+                        for pop_sec in popular_mandatory_sections:
+                            if pop_sec['course_id'] != cid and pop_sec['course_year_level'] == course_year:
+                                if check_time_overlap(sec['days'], sec['start_time'], sec['end_time'], pop_sec['days'], pop_sec['start_time'], pop_sec['end_time']):
+                                    insights.append(f"🔍 كشف تعارض: الشعبة #{sec['section_num']} إقبالها ضعيف ({percent_text}%) بسبب تعارض وقتها مع المادة الإجبارية ({pop_sec['title']}). يُنصح بتغيير موعدها لإتاحة المجال للطلاب.")
+                                    conflict_found = True
+                                    break
+                    
+                    # 2. إذا لم يكن هناك تعارض، نشغل خوارزمية وزن المادة والخريجين
+                    if not conflict_found:
+                        if is_mandatory:
+                            if course_year == 4:
+                                advice = f"⚠️ طوارئ خريجين: بالرغم من ضعف الإقبال ({percent_text}%)، هذه المادة (إجبارية سنة رابعة). تُطرح كدراسة خاصة لمنع تأخير التخرج."
+                                proposed_sections.append(format_section_data(sec, actual_capacity, advice))
+                            else:
+                                insights.append(f"إدارة موارد: الشعبة #{sec['section_num']} إقبالها ضعيف ({percent_text}%). لكونها ({course_category})، تُدمج مع شعبة أخرى أو تُطرح بقاعة صغيرة جداً.")
+                        else:
+                            insights.append(f"إلغاء: تم استبعاد الشعبة #{sec['section_num']} (إقبال {percent_text}%). لكونها ({course_category})، يُوجه الطلاب لمواد اختيارية بديلة.")
 
-            recommended_sections_count = len(proposed_sections)
-            
-            if recommended_sections_count == 0:
+            # ---------------------------------------------------------
+            # خوارزمية التوجيه الذكي (Smart Re-routing)
+            # ---------------------------------------------------------
+            if waitlisted_sections and available_sections:
+                for w_sec in waitlisted_sections:
+                    for a_sec in available_sections:
+                        available_seats = a_sec['capacity'] - a_sec['vote_count']
+                        if available_seats > 0:
+                            insights.append(f"💡 توجيه ذكي: الشعبة #{w_sec['section_num']} ممتلئة ولديها {w_sec['waitlist_count']} طلاب بالانتظار. بدلاً من فتح شعبة جديدة، يُنصح بتوجيه هؤلاء الطلاب للشعبة #{a_sec['section_num']} لاستغلال {available_seats} مقعد فارغ فيها.")
+                            break 
+
+            if len(proposed_sections) == 0 and len(insights) == 0:
                 continue
-
-            if full_sections_count > 0:
-                insights.append(f"تنبيه: هناك {full_sections_count} شُعب امتلأت بالكامل ووصلت لسعتها القصوى. يُرجح وجود طلاب آخرين لم يتمكنوا من التصويت، يُنصح بفتح شُعب موازية لها.")
-            
-            if dropped_sections_count > 0:
-                insights.append(f"تم استبعاد {dropped_sections_count} شُعب من الجدول المقترح لعدم وجود أي إقبال عليها. يُفضل إلغاؤها لتوفير القاعات.")
 
             final_report.append({
                 'course_code': info['course_code'],
-                'title': info['title'],
+                'title': f"{info['title']} - {course_category}",
                 'total_votes': total_votes,
-                'recommended_count': recommended_sections_count,
+                'recommended_count': len(proposed_sections),
                 'proposed_sections': proposed_sections,
                 'insights': insights
             })
@@ -1056,7 +1135,42 @@ def get_hod_final_report_service(dept_id):
         cursor.close()
         conn.close()
 
+def format_section_data(sec, actual_capacity, advice):
+    return {
+        'section_num': sec['section_num'],
+        'days': sec['days'],
+        'start_time': str(sec['start_time']),
+        'end_time': str(sec['end_time']),
+        'capacity': actual_capacity, 
+        'vote_count': sec['vote_count'],
+        'waitlist_count': sec['waitlist_count'],
+        'advice': advice
+    }
 
+def format_section_data(sec, actual_capacity, advice):
+    return {
+        'section_num': sec['section_num'],
+        'days': sec['days'],
+        'start_time': str(sec['start_time']),
+        'end_time': str(sec['end_time']),
+        'capacity': actual_capacity, 
+        'vote_count': sec['vote_count'],
+        'waitlist_count': sec['waitlist_count'],
+        'advice': advice
+    }
+
+# دالة مساعدة لتنظيف الكود وترتيب البيانات
+def format_section_data(sec, actual_capacity, advice):
+    return {
+        'section_num': sec['section_num'],
+        'days': sec['days'],
+        'start_time': str(sec['start_time']),
+        'end_time': str(sec['end_time']),
+        'capacity': actual_capacity, 
+        'vote_count': sec['vote_count'],
+        'waitlist_count': sec['waitlist_count'],
+        'advice': advice
+    }
 
 
 
@@ -1228,3 +1342,144 @@ def get_student_waitlist_service(student_id):
     finally:
         cursor.close()
         conn.close()
+
+
+
+
+        # --- Academic Structure CRUD ---
+
+def admin_add_university_service(data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO university (uni_name, email_domain, id_pattern) 
+            VALUES (%s, %s, %s)
+        """, (data.get('uni_name'), data.get('email_domain'), data.get('id_pattern')))
+        conn.commit()
+        return {"status": "success", "message": "تم إضافة الجامعة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_update_university_service(uni_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE university SET uni_name=%s, email_domain=%s, id_pattern=%s
+            WHERE uni_id=%s
+        """, (data.get('uni_name'), data.get('email_domain'), data.get('id_pattern'), uni_id))
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث الجامعة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_delete_university_service(uni_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM university WHERE uni_id=%s", (uni_id,))
+        conn.commit()
+        return {"status": "success", "message": "تم حذف الجامعة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_add_faculty_service(data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO faculty (fac_name, uni_id) 
+            VALUES (%s, %s)
+        """, (data.get('fac_name'), data.get('uni_id')))
+        conn.commit()
+        return {"status": "success", "message": "تم إضافة الكلية بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_update_faculty_service(fac_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE faculty SET fac_name=%s, uni_id=%s
+            WHERE fac_id=%s
+        """, (data.get('fac_name'), data.get('uni_id'), fac_id))
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث الكلية بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_delete_faculty_service(fac_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM faculty WHERE fac_id=%s", (fac_id,))
+        conn.commit()
+        return {"status": "success", "message": "تم حذف الكلية بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_add_department_service(data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO department (dept_name, fac_id) 
+            VALUES (%s, %s)
+        """, (data.get('dept_name'), data.get('fac_id')))
+        conn.commit()
+        return {"status": "success", "message": "تم إضافة القسم بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_update_department_service(dept_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE department SET dept_name=%s, fac_id=%s
+            WHERE dept_id=%s
+        """, (data.get('dept_name'), data.get('fac_id'), dept_id))
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث القسم بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def admin_delete_department_service(dept_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM department WHERE dept_id=%s", (dept_id,))
+        conn.commit()
+        return {"status": "success", "message": "تم حذف القسم بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+        

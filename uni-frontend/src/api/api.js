@@ -86,4 +86,34 @@ loginStaff: (data) => axios.post(`${API_BASE}/staff/login`, data),
     leaveWaitlist: (studentId, sectionId) => axios.delete(`${API_BASE}/waitlist`, { params: { student_id: studentId, section_id: sectionId } }),
     getWaitlist: (studentId) => axios.get(`${API_BASE}/waitlist/${studentId}`),
 
+
+
+// Academic Structure
+createUniversity: (data) => axios.post(`${API_BASE}/admin/universities`, data),
+updateUniversity: (id, data) => axios.put(`${API_BASE}/admin/universities/${id}`, data),
+deleteUniversity: (id) => axios.delete(`${API_BASE}/admin/universities/${id}`),
+
+createFaculty: (data) => axios.post(`${API_BASE}/admin/faculties`, data),
+updateFaculty: (id, data) => axios.put(`${API_BASE}/admin/faculties/${id}`, data),
+deleteFaculty: (id) => axios.delete(`${API_BASE}/admin/faculties/${id}`),
+
+createDepartment: (data) => axios.post(`${API_BASE}/admin/departments`, data),
+updateDepartment: (id, data) => axios.put(`${API_BASE}/admin/departments/${id}`, data),
+deleteDepartment: (id) => axios.delete(`${API_BASE}/admin/departments/${id}`),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };

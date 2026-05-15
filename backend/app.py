@@ -426,6 +426,50 @@ def get_student_waitlist(student_id):
 
 
 
+# --- Academic Structure Endpoints ---
+
+@app.route('/api/admin/universities', methods=['POST'])
+def add_university():
+    data = request.json or {}
+    return jsonify(services.admin_add_university_service(data))
+
+@app.route('/api/admin/universities/<int:uni_id>', methods=['PUT'])
+def update_university(uni_id):
+    data = request.json or {}
+    return jsonify(services.admin_update_university_service(uni_id, data))
+
+@app.route('/api/admin/universities/<int:uni_id>', methods=['DELETE'])
+def delete_university(uni_id):
+    return jsonify(services.admin_delete_university_service(uni_id))
+
+@app.route('/api/admin/faculties', methods=['POST'])
+def add_faculty():
+    data = request.json or {}
+    return jsonify(services.admin_add_faculty_service(data))
+
+@app.route('/api/admin/faculties/<int:fac_id>', methods=['PUT'])
+def update_faculty(fac_id):
+    data = request.json or {}
+    return jsonify(services.admin_update_faculty_service(fac_id, data))
+
+@app.route('/api/admin/faculties/<int:fac_id>', methods=['DELETE'])
+def delete_faculty(fac_id):
+    return jsonify(services.admin_delete_faculty_service(fac_id))
+
+@app.route('/api/admin/departments', methods=['POST'])
+def add_department():
+    data = request.json or {}
+    return jsonify(services.admin_add_department_service(data))
+
+@app.route('/api/admin/departments/<int:dept_id>', methods=['PUT'])
+def update_department(dept_id):
+    data = request.json or {}
+    return jsonify(services.admin_update_department_service(dept_id, data))
+
+@app.route('/api/admin/departments/<int:dept_id>', methods=['DELETE'])
+def delete_department(dept_id):
+    return jsonify(services.admin_delete_department_service(dept_id))
+
 
 
 
