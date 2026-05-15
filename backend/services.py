@@ -132,12 +132,13 @@ def get_all_plans_service(dept_id=None):
 
 
 
-def create_study_plan_service(plan_name, specialization, total_hours):
+def create_study_plan_service(plan_name, dept_id, total_hours):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        query = "INSERT INTO studyplan (plan_name, specialization, total_hours) VALUES (%s, %s, %s)"
-        cursor.execute(query, (plan_name, specialization, total_hours))
+        # قمنا بتغيير specialization إلى dept_id في الاستعلام
+        query = "INSERT INTO studyplan (plan_name, dept_id, total_hours) VALUES (%s, %s, %s)"
+        cursor.execute(query, (plan_name, dept_id, total_hours))
         conn.commit()
         return {"status": "success", "plan_id": cursor.lastrowid}
     except Exception as e:
@@ -308,7 +309,6 @@ def create_section_service(data):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # check conflict before add the section
         conflict = check_schedule_conflict(
             cursor, data['days'], data['start_time'], data['end_time'],
             data.get('room_id'), data.get('instructor_name')
@@ -329,6 +329,23 @@ def create_section_service(data):
             data['course_id'], next_num, data['days'], data['start_time'], data['end_time'],
             data.get('instructor_name'), data.get('room_id'), data['delivery_mode'], data.get('capacity', 50)
         ))
+
+        # --- كود الإشعارات: إعلام الطلاب بطرح شعبة جديدة لمادة بخطتهم ---
+        cursor.execute("""
+            SELECT s.student_id, c.title, c.dept_id
+            FROM student s
+            JOIN plan_course pc ON s.plan_id = pc.plan_id
+            JOIN course c ON pc.course_id = c.course_id
+            WHERE pc.course_id = %s
+        """, (data['course_id'],))
+        students = cursor.fetchall()
+        if students:
+            course_title = students[0]['title']
+            dept_id = students[0]['dept_id']
+            msg = f"تم طرح شعبة جديدة رقم #{next_num} لمادة ({course_title}) ضمن خطتك الدراسية."
+            notif_data = [(st['student_id'], msg, dept_id, 0) for st in students]
+            cursor.executemany("INSERT INTO student_notification (student_id, message, dept_id, is_published) VALUES (%s, %s, %s, %s)", notif_data)
+
         conn.commit()
         return {"status": "success", "section_num": next_num, "message": "تمت إضافة الشعبة بنجاح"}
     except Exception as e:
@@ -343,6 +360,13 @@ def update_section_service(section_id, data):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        # 1. جلب البيانات القديمة قبل التحديث للمقارنة
+        cursor.execute("SELECT capacity, section_num FROM section WHERE section_id = %s", (section_id,))
+        old_data = cursor.fetchone()
+        if not old_data:
+            return {"status": "error", "message": "الشعبة غير موجودة"}
+
+        # 2. التحقق من التعارضات (Conflicts)
         conflict = check_schedule_conflict(
             cursor, data['days'], data['start_time'], data['end_time'],
             data.get('room_id'), data.get('instructor_name'), exclude_id=section_id
@@ -351,6 +375,7 @@ def update_section_service(section_id, data):
         if conflict and not data.get('ignore_warning'):
             return {"status": "conflict", "type": conflict['type'], "message": conflict['message']}
 
+        # 3. تحديث بيانات الشعبة
         query = """
             UPDATE section
             SET days=%s, start_time=%s, end_time=%s, room_id=%s, instructor_name=%s, delivery_mode=%s, capacity=%s
@@ -361,6 +386,46 @@ def update_section_service(section_id, data):
             data.get('instructor_name'), data.get('delivery_mode'), data.get('capacity', 50), section_id
         ))
 
+        # 4. --- منطق الإشعارات الذكي ---
+        cursor.execute("""
+            SELECT st.student_id, c.title, s.section_num, c.dept_id
+            FROM section s
+            JOIN course c ON s.course_id = c.course_id
+            JOIN plan_course pc ON c.course_id = pc.course_id
+            JOIN student st ON pc.plan_id = st.plan_id
+            WHERE s.section_id = %s
+        """, (section_id,))
+        
+        affected_students = cursor.fetchall()
+        
+        if affected_students:
+            course_title = affected_students[0]['title']
+            sec_num = affected_students[0]['section_num']
+            dept_id = affected_students[0]['dept_id']
+            
+            new_capacity = int(data.get('capacity', 0))
+            old_capacity = int(old_data['capacity'])
+
+            # صياغة الرسالة بناءً على نوع التعديل
+            if new_capacity > old_capacity:
+                msg = f"بشرى سارة: تم زيادة سعة الشعبة #{sec_num} لمادة ({course_title}) لتستوعب عدداً أكبر من الطلاب."
+            else:
+                msg = f"تنبيه: تم تحديث بيانات الشعبة #{sec_num} (الموعد/القاعة/السعة) لمادة ({course_title}) المتاحة في خطتك."
+            
+            # تخزين الإشعارات كمسودة (غير منشورة) بانتظار زر الاعتماد
+            notif_data = [(st['student_id'], msg, dept_id, 0) for st in affected_students]
+            
+            cursor.executemany(
+                "INSERT INTO student_notification (student_id, message, dept_id, is_published) VALUES (%s, %s, %s, %s)", 
+                notif_data
+            )
+
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث بيانات الشعبة وتجهيز الإشعارات"}
+        
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -429,22 +494,76 @@ def get_student_schedule_service(student_id):
 
 def delete_section_service(section_id, keep_votes=True):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
+        # --- كود الإشعارات المحدث ---
+        # قمنا بتغيير الاستعلام ليجلب كل الطلاب الذين لديهم المادة في خطتهم
+        # لضمان إنشاء الإشعار حتى لو لم يصوت أحد على الشعبة بعد
+        cursor.execute("""
+            SELECT st.student_id, c.title, s.section_num, c.dept_id
+            FROM section s
+            JOIN course c ON s.course_id = c.course_id
+            JOIN plan_course pc ON c.course_id = pc.course_id
+            JOIN student st ON pc.plan_id = st.plan_id
+            WHERE s.section_id = %s
+        """, (section_id,))
+        students = cursor.fetchall()
+        
+        if students:
+            course_title = students[0]['title']
+            sec_num = students[0]['section_num']
+            dept_id = students[0]['dept_id']
+            msg = f"تنبيه: تم إلغاء وحذف الشعبة #{sec_num} في مادة ({course_title}) من الجدول الدراسي."
+            # تخزين الإشعار كمسودة (is_published = 0) بانتظار زر الاعتماد
+            notif_data = [(st['student_id'], msg, dept_id, 0) for st in students]
+            cursor.executemany("INSERT INTO student_notification (student_id, message, dept_id, is_published) VALUES (%s, %s, %s, %s)", notif_data)
+
+        # متابعة الحذف الطبيعي من قاعدة البيانات
         if keep_votes:
             cursor.execute("UPDATE vote SET section_id = NULL WHERE section_id = %s", (section_id,))
         else:
             cursor.execute("DELETE FROM vote WHERE section_id = %s", (section_id,))
 
         cursor.execute("DELETE FROM section WHERE section_id = %s", (section_id,))
+        
         conn.commit()
-        return {"status": "success", "message": "تم الحذف بنجاح"}
+        return {"status": "success", "message": "تم الحذف بنجاح وتجهيز الإشعار للطلاب"}
     except Exception as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
     finally:
         cursor.close()
         conn.close()
+
+# --- دوال الإشعارات الجديدة للطلاب ---
+def get_student_notifications_service(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM student_notification WHERE student_id = %s AND is_published = 1 ORDER BY created_at DESC", (student_id,))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def mark_notifications_read_service(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE student_notification SET is_read = 1 WHERE student_id = %s AND is_read = 0", (student_id,))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
 
 
 def publish_schedule_service():
@@ -913,6 +1032,96 @@ def get_hod_final_report_service(dept_id):
         conn.close()
 
 
+
+
+
+def add_new_course_service(data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # استخراج البيانات من الريكويست
+        course_code = data.get('course_code')
+        title = data.get('title')
+        line_number = data.get('line_number') # ممكن يكون Null
+        credit_hours = data.get('credit_hours', 3)
+        theory_hours = data.get('theory_hours', 0) # افتراضي 0
+        practical_hours = data.get('practical_hours', 0) # افتراضي 0
+        dept_id = data.get('dept_id')
+
+        # استعلام الإدخال
+        query = """
+            INSERT INTO course 
+            (course_code, title, line_number, credit_hours, theory_hours, practical_hours, dept_id) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        values = (course_code, title, line_number, credit_hours, theory_hours, practical_hours, dept_id)
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        return {"status": "success", "message": "تم إضافة المادة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+        
+
+def update_course_service(course_id, data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        query = """
+            UPDATE course 
+            SET course_code = %s, title = %s, line_number = %s, 
+                credit_hours = %s, theory_hours = %s, practical_hours = %s
+            WHERE course_id = %s
+        """
+        cursor.execute(query, (
+            data.get('course_code'), data.get('title'), data.get('line_number'),
+            data.get('credit_hours'), data.get('theory_hours', 0), 
+            data.get('practical_hours', 0), course_id
+        ))
+        conn.commit()
+        return {"status": "success", "message": "تم تحديث بيانات المادة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+def delete_course_service(course_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # 1. حذف الارتباط بالخطط الدراسية (plan_course) أولاً
+        cursor.execute("DELETE FROM plan_course WHERE course_id = %s", (course_id,))
+        
+        # 2. حذف المادة من جدول المتطلبات (سواء كانت مادة أساسية أو متطلباً لمادة أخرى)
+        cursor.execute("DELETE FROM prerequisites WHERE course_id = %s OR prereq_id = %s", (course_id, course_id))
+        
+        # 3. حذف أي تصويتات مرتبطة بهذه المادة لضمان تكامل البيانات
+        cursor.execute("DELETE FROM vote WHERE course_id = %s", (course_id,))
+        
+        # 4. حذف أي شعب دراسية مطروحة لهذه المادة
+        cursor.execute("DELETE FROM section WHERE course_id = %s", (course_id,))
+
+        # 5. الآن يمكن حذف المادة نفسها من جدول المواد (المكتبة) بدون أي قيود
+        cursor.execute("DELETE FROM course WHERE course_id = %s", (course_id,))
+        
+        conn.commit()
+        return {"status": "success", "message": "تم حذف المادة نهائياً من المكتبة ومن كافة الخطط والشعب المرتبطة بها بنجاح."}
+    except Exception as e:
+        # في حال حدوث أي خطأ، يتم التراجع عن كل العمليات السابقة (Rollback)
+        conn.rollback()
+        return {"status": "error", "message": f"حدث خطأ أثناء عملية الحذف المتسلسل: {str(e)}"}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
 def get_university_settings(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -924,4 +1133,30 @@ def get_university_settings(uni_id):
         conn.close()
         
 
-
+def publish_schedule_service(dept_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # نشر كافة الإشعارات المعلقة الخاصة بهذا القسم
+        cursor.execute("""
+            UPDATE student_notification 
+            SET is_published = 1 
+            WHERE dept_id = %s AND is_published = 0
+        """, (dept_id,))
+        
+        # يمكنك أيضاً نشر الشعب نفسها (is_published = 1) إذا كنت تستخدم هذا الحقل
+        cursor.execute("""
+            UPDATE section s
+            JOIN course c ON s.course_id = c.course_id
+            SET s.is_published = 1
+            WHERE c.dept_id = %s AND s.is_published = 0
+        """, (dept_id,))
+        
+        conn.commit()
+        return {"status": "success", "message": "تم نشر الجدول وإرسال الإشعارات للطلاب بنجاح."}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        cursor.close()
+        conn.close()

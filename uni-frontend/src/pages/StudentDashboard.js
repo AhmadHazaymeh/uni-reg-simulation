@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api/api';
 import { 
     LogOut, BookOpen, User, PieChart, CheckCircle, 
-    Hash, X, Calendar as CalendarIcon 
+    Hash, X, Calendar as CalendarIcon , AlertCircle
 } from 'lucide-react'; 
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -15,6 +15,7 @@ const StudentDashboard = () => {
     const [offeredSections, setOfferedSections] = useState({}); 
     const [loading, setLoading] = useState(true);
     const [userVotes, setUserVotes] = useState([]); 
+    const [notifications, setNotifications] = useState([]);
   
     const studentUser = JSON.parse(localStorage.getItem('student_user') || '{}');
 
@@ -35,6 +36,7 @@ const StudentDashboard = () => {
             return;
         }
         fetchAndGroupData();
+        fetchNotifications();
     }, []);
 
     const fetchAndGroupData = async () => {
@@ -81,10 +83,110 @@ const StudentDashboard = () => {
         }
     };
 
-    const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum) => {
+
+
+
+
+    const fetchNotifications = async () => {
+    if (!studentUser.id) return;
+
+    try {
+        const res = await api.getNotifications(studentUser.id);
+        const allNotifs = res.data;
+        setNotifications(allNotifs);
+
+        // فلترة الإشعارات غير المقروءة فقط
+        const unread = allNotifs.filter(n => n.is_read === 0);
+
+        // إذا وجدنا إشعارات جديدة، نعرضها فوراً في نافذة منبثقة
+        if (unread.length > 0) {
+            let htmlContent = `
+                <div style="text-align: right; direction: rtl; font-family: 'Tajawal', sans-serif;">
+                    <p style="margin-bottom: 15px; color: #64748b; font-size: 14px;">هناك تحديثات جديدة على جدولك الدراسي:</p>
+                    <div style="max-height: 300px; overflow-y: auto;">
+            `;
+
+            unread.forEach(n => {
+                htmlContent += `
+                    <div style="padding: 12px; margin-bottom: 8px; background: #f0f9ff; border-right: 4px solid #2563eb; border-radius: 6px; font-size: 13px; color: #1e293b; line-height: 1.5;">
+                        ${n.message}
+                    </div>
+                `;
+            });
+
+            htmlContent += `</div></div>`;
+
+            Swal.fire({
+                title: 'تنبيهات النظام',
+                html: htmlContent,
+                icon: 'info',
+                confirmButtonText: 'فهمت، ضع علامة مقروء',
+                confirmButtonColor: '#2563eb',
+                allowOutsideClick: false
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    // بعد إغلاق النافذة، نحدث الحالة في قاعدة البيانات لتصبح "مقروءة"
+                    try {
+                        await api.markNotificationsRead(studentUser.id);
+                        // تحديث الحالة محلياً لضمان عدم ظهورها مرة أخرى في نفس الجلسة
+                        setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+                    } catch (err) {
+                        console.error("فشل تحديث حالة الإشعارات", err);
+                    }
+                }
+            });
+        }
+    } catch (err) {
+        console.error("خطأ في جلب الإشعارات:", err);
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, currentVotes, capacity) => {
         const hasVoted = userVotes.includes(sectionId);
         const planId = studentUser.plan_id || 1;
         
+        // إذا كان الطالب مصوت مسبقاً وبده يسحب صوته، بنسمحله حتى لو ممتلئة
         if (hasVoted) {
             try {
                 const res = await api.removeVote({ student_id: studentUser.id, section_id: sectionId });
@@ -97,25 +199,35 @@ const StudentDashboard = () => {
             return;
         }
 
+        // --- التعديل الجديد: منع التصويت إذا كانت الشعبة ممتلئة ---
+        if (capacity > 0 && currentVotes >= capacity) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'الشعبة ممتلئة',
+                text: `عذراً، الشعبة رقم ${sectionNum} وصلت للحد الأقصى من التصويتات (${capacity} طلاب). لا يمكنك التصويت لها.`,
+                confirmButtonText: 'حسناً',
+                confirmButtonColor: '#6366f1'
+            });
+            return;
+        }
+
         try {
             const prereqRes = await api.getPlanCoursePrereqs(planId, courseId);
             const prereqs = prereqRes.data;
             
-
-const votedAlread = Object.values(offeredSections).some(course => 
-        course.sections.some(sec => sec.course_id === courseId && userVotes.includes(sec.section_id)));
-         if(votedAlread){
-            Swal.fire({
-            icon: 'warning',
-            title: 'تنبيه',
-            text: `أنت مصوت مسبقاً لمساق (${courseName}) في شعبة أخرى. قم بإلغاء تصويتك القديم أولاً لتتمكن من تغيير الشعبة.`,
-            confirmButtonText: 'حسناً',
-            confirmButtonColor: '#6366f1'
-        });
-        return;
-
-    }
-///////
+            const votedAlread = Object.values(offeredSections).some(course => 
+                course.sections.some(sec => sec.course_id === courseId && userVotes.includes(sec.section_id)));
+            
+            if(votedAlread){
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تنبيه',
+                    text: `أنت مصوت مسبقاً لمساق (${courseName}) في شعبة أخرى. قم بإلغاء تصويتك القديم أولاً لتتمكن من تغيير الشعبة.`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#6366f1'
+                });
+                return;
+            }
 
             if (prereqs.length > 0) {
                 const prereq = prereqs[0]; 
@@ -190,6 +302,28 @@ const votedAlread = Object.values(offeredSections).some(course =>
                  </div>
 
                 <div style={styles.navActions}>
+                    <div style={styles.navActions}>
+                    
+                    {/* أيقونة الإشعارات */}
+                    <div style={{ position: 'relative', cursor: 'pointer', marginLeft: '15px' }} onClick={fetchNotifications}>
+                        <div style={{ backgroundColor: '#f1f5f9', padding: '8px', borderRadius: '10px' }}>
+                            <CalendarIcon size={20} color="#64748b" />
+                        </div>
+                        {notifications.filter(n => n.is_read === 0).length > 0 && (
+                            <span style={{
+                                position: 'absolute', top: '-5px', right: '-5px',
+                                backgroundColor: '#ef4444', color: 'white', fontSize: '10px',
+                                width: '18px', height: '18px', borderRadius: '50%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontWeight: 'bold', border: '2px solid white'
+                            }}>
+                                {notifications.filter(n => n.is_read === 0).length}
+                            </span>
+                        )}
+                    </div>
+
+                   
+                </div>
                     <div style={styles.idBadge}><Hash size={14} /> {studentUser.id}</div>
                     <button onClick={handleLogout} style={styles.logoutBtn}><LogOut size={18} /> خروج</button>
                 </div>
@@ -253,10 +387,13 @@ const votedAlread = Object.values(offeredSections).some(course =>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {offeredData.sections.map((section) => {
-                                                                const votePercent = offeredData.totalVotes > 0 ? Math.round((section.current_votes / offeredData.totalVotes) * 100) : 0;
+                                                          {offeredData.sections.map((section) => {
+                                                             const votePercent = (section.capacity && section.capacity > 0) 
+                                                            ? Math.min(100, Math.round((section.current_votes / section.capacity) * 100)) 
+                                                                       : 0;
+        
                                                                 const isVoted = userVotes.includes(section.section_id);
-                                                                return (
+                                                                  return (
                                                                     <tr key={section.section_id} style={styles.tr}>
                                                                         <td style={styles.tdSection}># {section.section_num}</td>
                                                                         <td style={styles.td}>{section.instructor_name}</td>
@@ -267,20 +404,39 @@ const votedAlread = Object.values(offeredSections).some(course =>
                                                                         <td style={styles.td}>
                                                                             <div style={styles.analyticsWrapper}>
                                                                                 <div style={styles.progressTrack}>
-                                                                                    <div style={{...styles.progressBar, width: `${votePercent}%`, backgroundColor: votePercent > 50 ? '#10b981' : '#6366f1'}}></div>
-                                                                                </div>
-                                                                                <span style={styles.percentText}>{votePercent}% ({section.current_votes} صوت)</span>
+<div style={styles.progressTrack}>
+    <div style={{
+        ...styles.progressBar, 
+        width: `${votePercent}%`, 
+        backgroundColor: (section.capacity > 0 && section.current_votes >= section.capacity) 
+            ? '#ef4444'
+            : (votePercent > 50 ? '#10b981' : '#6366f1') // أخضر أو أزرق للحالات العادية
+    }}></div>
+</div>                                                                                </div>
+                                                                               <span style={styles.percentText}>{votePercent}% ({section.current_votes} صوت من أصل {section.capacity || 'غير محدد'})</span>
                                                                             </div>
                                                                         </td>
                                                                         <td style={styles.td}>
-                                                                            <button
-                                                                                style={{...styles.voteBtn, backgroundColor: isVoted ? '#ef4444' : '#6366f1'}}
-                                                                                onClick={() => handleVoteToggle(section.course_id, section.section_id, course.title, section.section_num)}
-                                                                            >
-                                                                                {isVoted ? <X size={16} /> : <CheckCircle size={16} />}
-                                                                                {isVoted ? 'سحب' : 'تصويت'}
-                                                                            </button>
-                                                                        </td>
+    {(() => {
+        const isFull = section.capacity > 0 && section.current_votes >= section.capacity;
+        
+        return (
+            <button
+                disabled={!isVoted && isFull} 
+                style={{
+                    ...styles.voteBtn, 
+                    backgroundColor: isVoted ? '#ef4444' : (isFull ? '#94a3b8' : '#6366f1'), 
+                    cursor: (!isVoted && isFull) ? 'not-allowed' : 'pointer',
+                    opacity: (!isVoted && isFull) ? 0.6 : 1
+                }}
+                onClick={() => handleVoteToggle(section.course_id, section.section_id, course.title, section.section_num, section.current_votes, section.capacity)}
+            >
+                {isVoted ? <X size={16} /> : (isFull ? <AlertCircle size={16} /> : <CheckCircle size={16} />)}
+                {isVoted ? 'سحب' : (isFull ? 'ممتلئة' : 'تصويت')}
+            </button>
+        );
+    })()}
+</td>
                                                                     </tr>
                                                                 );
                                                             })}

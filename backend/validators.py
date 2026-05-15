@@ -72,8 +72,10 @@ def validate_plan_data(data):
     errors = []
     if not data.get('plan_name'): 
         errors.append("اسم الخطة مطلوب")
-    if not data.get('specialization'): 
-        errors.append("التخصص مطلوب")
+    
+    # تم إلغاء حقل التخصص وإضافة حقل القسم
+    if not data.get('dept_id'): 
+        errors.append("القسم مطلوب لإنشاء الخطة")
 
     total_hours = data.get('total_hours')
     if total_hours is None or str(total_hours).strip() == "":

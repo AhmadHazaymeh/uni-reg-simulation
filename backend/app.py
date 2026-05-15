@@ -95,7 +95,7 @@ def get_catalog():
 
 @app.route('/api/plans', methods=['GET', 'POST'])
 def manage_plans():
-    dept_id = request.args.get('dept_id') # بما أن القسم يتبع لكلية وجامعة، العزل هنا يتحقق تلقائياً
+    dept_id = request.args.get('dept_id') 
     if request.method == 'GET':
         return jsonify(services.get_all_plans_service(dept_id))
     
@@ -106,7 +106,7 @@ def manage_plans():
     
     result = services.create_study_plan_service(
         data.get('plan_name'), 
-        data.get('specialization'), 
+        data.get('dept_id'),
         data.get('total_hours')
     )
     return jsonify(result), 201
@@ -163,6 +163,31 @@ def delete_plan_prerequisite(plan_id, course_id):
 
 # Sections
 
+@app.route('/api/sections/<int:section_id>', methods=['PUT'])
+def update_section_route(section_id):
+    data = request.json or {}
+    result = services.update_section_service(section_id, data)
+    if result and result.get('status') == 'conflict':
+        return jsonify(result), 409
+    return jsonify(result)
+
+@app.route('/api/sections/<int:section_id>', methods=['DELETE'])
+def delete_section_route(section_id):
+    keep_votes = request.args.get('keep_votes') == 'true'
+    return jsonify(services.delete_section_service(section_id, keep_votes))
+
+
+
+
+
+
+@app.route('/api/publish-schedule', methods=['POST'])
+def publish_schedule():
+    data = request.json
+    return jsonify(services.publish_schedule_service(data.get('dept_id')))
+
+
+
 
 
 
@@ -185,11 +210,7 @@ def manage_sections():
 
 
 
-@app.route('/api/sections/publish', methods=['POST'])
-def publish_schedule():
-    result = services.publish_schedule_service()
-    status_code = 200 if result.get('status') == 'success' else 500
-    return jsonify(result), status_code
+
 
 
 #  الطالب والتصويت  
@@ -351,12 +372,39 @@ def get_universities():
 
 
 
+@app.route('/api/add-course', methods=['POST'])
+def add_course():
+    data = request.json
+    result = services.add_new_course_service(data)
+    if result['status'] == 'success':
+        return jsonify(result), 201
+    return jsonify(result), 400
+
+
+@app.route('/api/courses/<int:course_id>', methods=['PUT'])
+def update_course_route(course_id):
+    data = request.json
+    return jsonify(services.update_course_service(course_id, data))
+
+@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
+def delete_course_route(course_id):
+    return jsonify(services.delete_course_service(course_id))
 
 
 
 
 
 
+
+
+#  اشعارات الطالب
+@app.route('/api/student/<student_id>/notifications', methods=['GET'])
+def get_student_notifications(student_id):
+    return jsonify(services.get_student_notifications_service(student_id))
+
+@app.route('/api/student/<student_id>/notifications/read', methods=['POST'])
+def mark_notifications_read(student_id):
+    return jsonify(services.mark_notifications_read_service(student_id))
 
 
 

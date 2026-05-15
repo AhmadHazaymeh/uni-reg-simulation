@@ -1,34 +1,13 @@
 import React from 'react';
 import { Eye, Trash2, Plus } from 'lucide-react';
 
-const PlansTab = ({ plans, selectedSpec, setSelectedSpec, setShowPlanModal, openEditModal, handleDeletePlan, styles }) => {
-    
-    const specNames = {
-        'SE': 'هندسة البرمجيات',
-        'CS': 'علم الحاسوب',
-        'CIS': 'نظم المعلومات الحاسوبية',
-        'CY': 'الأمن السيبراني'
-    };
-
+const PlansTab = ({ plans, setShowPlanModal, openEditModal, handleDeletePlan, styles }) => {
     return (
         <div style={styles.card}>
             <div style={styles.cardHeader}>
-                <div style={styles.filterGroup}>
-                    <label style={styles.label}>اختيار التخصص لعرض الخطط:</label>
-                    <select 
-                        value={selectedSpec} 
-                        onChange={(e) => setSelectedSpec(e.target.value)} 
-                        style={styles.selectInput}
-                    >
-                        {['SE', 'CS', 'CIS', 'CY'].map(s => (
-                            <option key={s} value={s}>
-                                {specNames[s]} {}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <h3 style={{ margin: 0, color: '#1e293b' }}>إدارة الخطط الدراسية للقسم</h3>
                 <button style={styles.addBtn} onClick={() => setShowPlanModal(true)}>
-                    <Plus size={18} /> إنشاء خطة جديدة لهذا التخصص
+                    <Plus size={18} /> إنشاء خطة جديدة
                 </button>
             </div>
             <div style={styles.tableContainer}>
@@ -51,6 +30,12 @@ const PlansTab = ({ plans, selectedSpec, setSelectedSpec, setShowPlanModal, open
                         </div>
                     </div>
                 ))}
+                
+                {plans.length === 0 && (
+                    <div style={{padding: '20px', textAlign: 'center', color: '#94a3b8'}}>
+                        لا توجد خطط دراسية مضافة لهذا القسم حالياً.
+                    </div>
+                )}
             </div>
         </div>
     );

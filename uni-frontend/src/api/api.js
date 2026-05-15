@@ -10,7 +10,10 @@ export const api = {
         
 
     // Catalog
-   getCatalog: (deptId) => axios.get(`${API_BASE}/catalog/courses`, { params: { dept_id: deptId } }),    
+   getCatalog: (deptId) => axios.get(`${API_BASE}/catalog/courses`, { params: { dept_id: deptId } }),
+   addCourse: (courseData) => axios.post(`${API_BASE}/add-course`, courseData), 
+   updateCourse: (id, data) => axios.put(`${API_BASE}/courses/${id}`, data), 
+    deleteCourse: (id) => axios.delete(`${API_BASE}/courses/${id}`),
 
     // Plan-Courses
     getPlanCourses: (planId) => axios.get(`${API_BASE}/plans/${planId}/courses`),
@@ -69,6 +72,13 @@ getUniversities: () => axios.get(`${API_BASE}/universities`),
 
 loginStaff: (data) => axios.post(`${API_BASE}/staff/login`, data),
 
+
+
+
+// Notifications (جديد)
+    getNotifications: (studentId) => axios.get(`${API_BASE}/student/${studentId}/notifications`),
+    markNotificationsRead: (studentId) => axios.post(`${API_BASE}/student/${studentId}/notifications/read`),
+    publishSchedule: (data) => axios.post(`${API_BASE}/publish-schedule`, data),
 
 
 };

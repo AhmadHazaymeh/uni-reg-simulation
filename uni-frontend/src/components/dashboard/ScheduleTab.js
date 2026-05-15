@@ -80,9 +80,12 @@ const ScheduleTab = ({ catalog, styles }) => {
     };
 
     const handleFinalApproval = async () => {
+        // 1. جلب رقم القسم من التخزين المحلي
+        const deptId = localStorage.getItem('dept_id');
+
         const result = await Swal.fire({
             title: 'الاعتماد النهائي للجدول',
-            text: "هل أنت متأكد من اعتماد هذا الجدول؟ سيظهر فوراً للطلاب لبدء عملية التصويت ولن يتمكنوا من رؤيته قبل ذلك.",
+            text: "هل أنت متأكد من اعتماد هذا الجدول؟ سيتم نشره للطلاب لبدء التصويت وستصلهم إشعارات فورية بالتحديثات.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'نعم، اعتمد الجدول وانشره',
@@ -92,11 +95,18 @@ const ScheduleTab = ({ catalog, styles }) => {
 
         if (result.isConfirmed) {
             try {
-                await api.publishSchedule(); 
-                Swal.fire('تم الاعتماد', 'الجدول الدراسي متاح الآن للطلاب بنجاح.', 'success');
-                fetchSections();
+                // 2. تمرير رقم القسم داخل الـ API
+                const res = await api.publishSchedule({ dept_id: deptId }); 
+                
+                if (res.data.status === 'success') {
+                    Swal.fire('تم الاعتماد بنجاح', 'الجدول الدراسي متاح الآن للطلاب وتم إرسال الإشعارات.', 'success');
+                    // تحديث واجهة الشعب لعرض التغييرات الجديدة
+                    if (typeof fetchSections === 'function') fetchSections(); 
+                } else {
+                    Swal.fire('تنبيه', res.data.message, 'warning');
+                }
             } catch (err) {
-                Swal.fire('خطأ', 'حدث خلل أثناء اعتماد الجدول. تأكد من اتصال قاعدة البيانات.', 'error');
+                Swal.fire('خطأ', 'حدث خلل أثناء اعتماد الجدول وإرسال الإشعارات. تأكد من الاتصال بقاعدة البيانات.', 'error');
             }
         }
     };

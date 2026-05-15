@@ -11,7 +11,6 @@ import ScheduleTab from '../components/dashboard/ScheduleTab';
 
 const DataEntryDashboard = () => {
     const [activeTab, setActiveTab] = useState('plans');
-    const [selectedSpec, setSelectedSpec] = useState('SE');
 
     const [plans, setPlans] = useState([]);
     const [catalog, setCatalog] = useState([]);
@@ -52,12 +51,12 @@ const DataEntryDashboard = () => {
                 api.getPlans(deptId),
                 api.getCatalog(deptId)
             ]);
-            setPlans(plansRes.data.filter(p => p.specialization === selectedSpec));
+            setPlans(plansRes.data); 
             setCatalog(catalogRes.data);
         } catch (err) { console.error("Error fetching data", err); }
     };
 
-    useEffect(() => { fetchData(); }, [selectedSpec, activeTab]);
+    useEffect(() => { fetchData(); }, [activeTab]);
 
     const fetchPrereqs = async (planId, courseId) => {
         try {
@@ -84,24 +83,28 @@ const DataEntryDashboard = () => {
     };
 
     const handleCreatePlan = async (e) => {
-        e.preventDefault();
-        const hours = parseInt(newPlanHours);
-        if (hours < 1) {
-            return Swal.fire({ icon: 'warning', title: 'رقم غير منطقي', text: 'يجب أن يكون عدد الساعات 1 على الأقل.' });
+    e.preventDefault();
+    const hours = parseInt(newPlanHours);
+    if (hours < 1) {
+        return Swal.fire({ icon: 'warning', title: 'رقم غير منطقي', text: 'يجب أن يكون عدد الساعات 1 على الأقل.' });
+    }
+
+    const deptId = localStorage.getItem('dept_id'); // جلب رقم القسم
+
+    try {
+        const res = await api.createPlan({
+            plan_name: newPlanName,
+            dept_id: deptId, // إرسال القسم للباك إند
+            total_hours: hours
+        });
+        if (res.data.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'تم إنشاء الخطة بنجاح', timer: 1500, showConfirmButton: false });
+            setNewPlanName(''); setNewPlanHours(''); setShowPlanModal(false);
+            fetchData();
         }
-        try {
-            const res = await api.createPlan({
-                plan_name: newPlanName,
-                specialization: selectedSpec,
-                total_hours: hours
-            });
-            if (res.data.status === 'success') {
-                Swal.fire({ icon: 'success', title: 'تم إنشاء الخطة بنجاح', timer: 1500, showConfirmButton: false });
-                setNewPlanName(''); setNewPlanHours(''); setShowPlanModal(false);
-                fetchData();
-            }
-        } catch (err) { Swal.fire('خطأ', 'فشل إنشاء الخطة', 'error'); }
-    };
+    } catch (err) { Swal.fire('خطأ', 'فشل إنشاء الخطة', 'error'); }
+};
+
 
     const handleDeletePlan = async (planId) => {
         const result = await Swal.fire({
@@ -259,9 +262,9 @@ const DataEntryDashboard = () => {
 
                 <div style={styles.contentArea}>
                     {activeTab === 'plans' && (
-                        <PlansTab plans={plans} selectedSpec={selectedSpec} setSelectedSpec={setSelectedSpec} setShowPlanModal={setShowPlanModal} openEditModal={openEditModal} handleDeletePlan={handleDeletePlan} styles={styles} />
-                    )}
-                    {activeTab === 'catalog' && <CatalogTab catalog={catalog} styles={styles} />}
+                         <PlansTab plans={plans} setShowPlanModal={setShowPlanModal} openEditModal={openEditModal} handleDeletePlan={handleDeletePlan} styles={styles} />
+            )}
+                    {activeTab === 'catalog' && <CatalogTab catalog={catalog} styles={styles} fetchData={fetchData} />}
                     {activeTab === 'schedule' && <ScheduleTab catalog={catalog} styles={styles} />}
                 </div>
             </main>
