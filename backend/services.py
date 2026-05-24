@@ -496,9 +496,7 @@ def delete_section_service(section_id, keep_votes=True):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # --- كود الإشعارات المحدث ---
-        # قمنا بتغيير الاستعلام ليجلب كل الطلاب الذين لديهم المادة في خطتهم
-        # لضمان إنشاء الإشعار حتى لو لم يصوت أحد على الشعبة بعد
+       
         cursor.execute("""
             SELECT st.student_id, c.title, s.section_num, c.dept_id
             FROM section s
@@ -968,7 +966,7 @@ def get_hod_analytics_service(dept_id):
 
 
 
-# ---  ميزة التقرير النهائي لرئيس القسم ---
+# ---   التقرير النهائيم ---
 def check_time_overlap(days1, start1, end1, days2, start2, end2):
     if not days1 or not days2 or not start1 or not end1 or not start2 or not end2:
         return False
