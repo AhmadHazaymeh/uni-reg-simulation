@@ -42,7 +42,7 @@ def staff_login():
     if errors:
         return jsonify({"errors": errors}), 400
         
-    # ملاحظة: يجب أن تعدل دالة login_staff_service في ملف services.py لتستقبل uni_id وتقارنه أيضاً!
+    # login_staff_service في ملف services.py لتستقبل uni_id
     return jsonify(services.login_staff_service(data.get('email'), data.get('password'), uni_id))
 
 
@@ -330,7 +330,7 @@ def get_hod_analytics():
 
 
 
-# Route جديد للتقرير النهائي الذكي
+# Route جديد للتقرير النهائي 
 @app.route('/api/hod/final_report', methods=['GET'])
 def get_hod_final_report():
     dept_id = request.args.get('dept_id')
@@ -357,7 +357,6 @@ def get_universities():
         cursor.execute("SELECT dept_id as id, dept_name as name, fac_id FROM department")
         departments = cursor.fetchall()
         
-        # تجميع البيانات في هيكل شجري (Tree Structure) يشبه ملف universitiesData.js القديم
         for uni in universities:
             uni['faculties'] = [fac for fac in faculties if fac['uni_id'] == uni['id']]
             for fac in uni['faculties']:

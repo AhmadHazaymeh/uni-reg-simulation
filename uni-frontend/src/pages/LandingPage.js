@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, ShieldCheck, ArrowRight, Building, BookOpen, MapPin } from 'lucide-react';
-import { api } from '../api/api'; // استيراد الـ API بدلاً من الملف الثابت
+import { api } from '../api/api'; 
 
 const LandingPage = () => {
     const navigate = useNavigate();
     
-    const [universities, setUniversities] = useState([]); // حالة لتخزين الجامعات
-    const [loading, setLoading] = useState(true); // حالة التحميل
-    
+    const [universities, setUniversities] = useState([]);
+    const [loading, setLoading] = useState(true); 
     const [selectedUniId, setSelectedUniId] = useState('');
     const [selectedFacId, setSelectedFacId] = useState('');
     const [selectedDeptId, setSelectedDeptId] = useState('');
 
-    // جلب البيانات من السيرفر عند تشغيل الصفحة
+   
     useEffect(() => {
         const fetchUnis = async () => {
             try {
@@ -32,7 +31,7 @@ const LandingPage = () => {
     const selectedFac = selectedUni?.faculties?.find(f => f.id.toString() === selectedFacId.toString());
     const selectedDept = selectedFac?.departments?.find(d => d.id.toString() === selectedDeptId.toString());
 
-    // تحديث دالة تغيير الجامعة لتخزين البيانات في localStorage
+    //   تغيير الجامعة لتخزين البيانات في localStorage
     const handleUniChange = (e) => {
         const uniId = e.target.value;
         setSelectedUniId(uniId);
@@ -80,7 +79,7 @@ const LandingPage = () => {
                     <p style={styles.subtitle}>الجامعات الأردنية - نظام بناء الجداول الدراسية</p>
                 </div>
 
-                {/* نموذج الاختيار المتسلسل */}
+                {/*  الاختيار المتسلسل */}
                 <div style={styles.formContainer}>
                     
                     {/* اختيار الجامعة */}
@@ -94,7 +93,7 @@ const LandingPage = () => {
                         </select>
                     </div>
 
-                    {/* اختيار الكلية (يظهر فقط بعد اختيار الجامعة) */}
+                    {/* اختيار الكلية     ) */}
                     <div style={{...styles.inputGroup, opacity: selectedUniId ? 1 : 0.4, pointerEvents: selectedUniId ? 'auto' : 'none'}}>
                         <label style={styles.label}><BookOpen size={16}/> اختر الكلية:</label>
                         <select style={styles.select} value={selectedFacId} onChange={(e) => { setSelectedFacId(e.target.value); setSelectedDeptId(''); }}>
@@ -105,7 +104,7 @@ const LandingPage = () => {
                         </select>
                     </div>
 
-                    {/* اختيار القسم (يظهر فقط بعد اختيار الكلية) */}
+                    {/* اختيار القسم ) */}
                     <div style={{...styles.inputGroup, opacity: selectedFacId ? 1 : 0.4, pointerEvents: selectedFacId ? 'auto' : 'none'}}>
                         <label style={styles.label}><MapPin size={16}/> اختر القسم الأكاديمي:</label>
                         <select style={styles.select} value={selectedDeptId} onChange={handleDeptChange}>
@@ -117,7 +116,7 @@ const LandingPage = () => {
                     </div>
                 </div>
 
-                {/* البوابات تظهر فقط عند اكتمال الاختيار */}
+                {/* البوابات      */}
                 {selectedDeptId && (
                     <div style={styles.portalsContainer}>
                         <div style={styles.divider}>
@@ -154,7 +153,6 @@ const LandingPage = () => {
     );
 };
 
-// ... الستايلات (styles) تبقى كما هي بالظبط بدون أي تغيير ...
 const styles = {
     container: {
         minHeight: '100vh',

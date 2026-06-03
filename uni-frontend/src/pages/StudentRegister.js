@@ -13,7 +13,6 @@ const StudentRegister = () => {
         full_name: ''
     });
 
-    // جلب بيانات الجامعة المختارة من شاشة البداية
     const selectedUniId = localStorage.getItem('selected_uni_id');
     const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
 
@@ -24,7 +23,6 @@ const StudentRegister = () => {
     const handleRegister = async (e) => {
         e.preventDefault();
         
-        // التأكد من أن الطالب اختار جامعة من الشاشة الرئيسية
         if (!selectedUniId) {
             return Swal.fire({
                 icon: 'warning',
@@ -34,11 +32,7 @@ const StudentRegister = () => {
             });
         }
 
-        /* تم إزالة التحقق الثابت (Hardcoded) من الإيميل والرقم الجامعي من هنا.
-         الآن سيتم إرسال البيانات للباك إند، وهو سيقوم بالتحقق منها 
-         بناءً على الـ Regex والدومين المخزن في الداتابيس لهذه الجامعة تحديداً.
-        */
-
+        
         // دمج رقم الجامعة مع بيانات التسجيل
         const payload = {
             ...formData,
@@ -77,7 +71,7 @@ const StudentRegister = () => {
                 <div style={styles.header}>
                     <div style={styles.iconCircle}><UserPlus color="#fff" size={32} /></div>
                     <h2 style={styles.title}>إنشاء حساب طالب جديد</h2>
-                    {/* عرض اسم الجامعة ديناميكياً */}
+                    {/* */}
                     <p style={styles.subtitle}>بوابة التسجيل - {selectedUniName}</p>
                 </div>
 

@@ -8,7 +8,7 @@ const StudentLogin = () => {
     const navigate = useNavigate();
     const [loginData, setLoginData] = useState({ student_id: '', password: '' });
 
-    // جلب بيانات الجامعة المختارة من شاشة البداية
+    //  بيانات الجامعة المختارة من شاشة البداية
     const selectedUniId = localStorage.getItem('selected_uni_id');
     const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
 
@@ -62,14 +62,14 @@ const StudentLogin = () => {
                 <div style={styles.header}>
                     <div style={styles.iconCircle}><LogIn color="#fff" size={32} /></div>
                     <h2 style={styles.title}>تسجيل دخول الطالب</h2>
-                    {/* عرض اسم الجامعة ديناميكياً */}
+                    {/* عرض اسم الجامعة  */}
                     <p style={styles.subtitle}>بوابة الطالب - {selectedUniName}</p>
                 </div>
 
                 <form onSubmit={handleLogin} style={styles.form}>
                     <div style={styles.inputGroup}>
                         <label style={styles.label}><Hash size={16} /> الرقم الجامعي:</label>
-                        {/* تعديل الـ Placeholder ليكون عاماً */}
+                        {/* */}
                         <input 
                             placeholder="أدخل رقمك الجامعي" 
                             style={styles.input} 
@@ -102,7 +102,6 @@ const StudentLogin = () => {
     );
 };
 
-// الستايلات (styles) تبقى كما هي بدون تغيير
 const styles = {
     container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecfdf5', padding: '20px', fontFamily: 'Tajawal, sans-serif', direction: 'rtl' },
     card: { backgroundColor: '#fff', padding: '40px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px', textAlign: 'right' },

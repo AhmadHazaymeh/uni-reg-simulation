@@ -134,10 +134,8 @@ const StudentDashboard = () => {
                 allowOutsideClick: false
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    // بعد إغلاق النافذة، نحدث الحالة في قاعدة البيانات لتصبح "مقروءة"
                     try {
                         await api.markNotificationsRead(studentUser.id);
-                        // تحديث الحالة محلياً لضمان عدم ظهورها مرة أخرى في نفس الجلسة
                         setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
                     } catch (err) {
                         console.error("فشل تحديث حالة الإشعارات", err);

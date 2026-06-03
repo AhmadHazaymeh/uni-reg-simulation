@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Eye, EyeOff, Mail, Lock, LogIn } from 'lucide-react';
-import { api } from '../api/api'; // استيراد كائن الـ api المحدث
+import { api } from '../api/api'; 
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -11,14 +11,12 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    // جلب اسم الجامعة المختار لعرضه في العنوان (اختياري للجمالية)
     const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        // 1. جلب رقم الجامعة التي اختارها المستخدم من localStorage
         const selectedUniId = localStorage.getItem('selected_uni_id');
 
         if (!selectedUniId) {
@@ -32,7 +30,6 @@ const Login = () => {
         }
 
         try {
-            // 2. استخدام api.loginStaff وإرسال الـ uni_id مع البيانات
             const res = await api.loginStaff({ 
                 email, 
                 password,
@@ -42,10 +39,8 @@ const Login = () => {
             if (res.data.status === 'success') {
                 const { token, user } = res.data;
 
-                // --- 🚨 بداية نقطة التفتيش الذكية 🚨 ---
                 const targetDeptId = localStorage.getItem('target_dept_id');
 
-                // التحقق من انتمام الموظف للقسم المختار (إلا إذا كان أدمن عام)
                 if (user.role !== 'admin' && targetDeptId !== null) {
                     if (targetDeptId != user.dept_id) {
                         Swal.fire({
@@ -58,14 +53,13 @@ const Login = () => {
                         return;
                     }
                 }
-                // --- 🚨 نهاية نقطة التفتيش 🚨 ---
+                
 
-                // 3. تخزين بيانات الجلسة
                 localStorage.setItem('token', token);
                 localStorage.setItem('role', user.role);
                 localStorage.setItem('dept_id', user.dept_id);
                 localStorage.setItem('user_name', user.name);
-                localStorage.setItem('uni_id', user.uni_id); // تخزين رقم الجامعة المسجل عليها
+                localStorage.setItem('uni_id', user.uni_id); 
 
                 Swal.fire({
                     icon: 'success',
@@ -109,7 +103,7 @@ const Login = () => {
                         <LogIn size={28} color="#2563eb" />
                     </div>
                     <h2 style={styles.title}>دخول الموظف</h2>
-                    {/* عرض اسم الجامعة المختار ديناميكياً */}
+                    {/*  اسم الجامعة   */}
                     <p style={styles.subtitle}>بوابة تسجيل الموظفين - {selectedUniName}</p>
                 </div>
 
@@ -159,14 +153,13 @@ const Login = () => {
                 </form>
 
                 <div style={styles.footer}>
-                    <p>© 2025 نظام محاكاة التسجيل الجامعي المتعدد</p>
+                    <p>© 2025 نظام محاكاة التسجيل الجامعي </p>
                 </div>
             </div>
         </div>
     );
 };
 
-// ... (نفس الـ styles التي أرسلتها بدون تغيير)
 const styles = {
     container: {
         display: 'flex',

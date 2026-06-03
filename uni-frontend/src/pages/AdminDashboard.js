@@ -208,7 +208,7 @@ const AdminDashboard = () => {
                         <button onClick={() => setSelectedDept(null)} style={styles.backBtn}><ChevronLeft size={18}/> العودة للأقسام</button>
                         <h2 style={styles.pageTitle}>إدارة قسم: {selectedDept.dept_name}</h2>
 
-                        {/* قسم رئيس القسم HOD */}
+
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
                                 <h3 style={styles.sectionTitle}><UserCog color="#2563eb"/> رئيس القسم</h3>
@@ -230,7 +230,7 @@ const AdminDashboard = () => {
                             {getDeptStaff('hod').length === 0 && <p style={styles.empty}>لا يوجد رئيس معين لهذا القسم حالياً.</p>}
                         </div>
 
-                        {/* قسم مدخلي البيانات Clerks */}
+
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
                                 <h3 style={styles.sectionTitle}><LayoutDashboard color="#10b981"/> مدخلي البيانات</h3>

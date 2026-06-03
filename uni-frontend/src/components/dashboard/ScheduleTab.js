@@ -80,7 +80,7 @@ const ScheduleTab = ({ catalog, styles }) => {
     };
 
     const handleFinalApproval = async () => {
-        // 1. جلب رقم القسم من التخزين المحلي
+        // 1. جلب رقم القسم من التخزين 
         const deptId = localStorage.getItem('dept_id');
 
         const result = await Swal.fire({
@@ -100,7 +100,6 @@ const ScheduleTab = ({ catalog, styles }) => {
                 
                 if (res.data.status === 'success') {
                     Swal.fire('تم الاعتماد بنجاح', 'الجدول الدراسي متاح الآن للطلاب وتم إرسال الإشعارات.', 'success');
-                    // تحديث واجهة الشعب لعرض التغييرات الجديدة
                     if (typeof fetchSections === 'function') fetchSections(); 
                 } else {
                     Swal.fire('تنبيه', res.data.message, 'warning');
