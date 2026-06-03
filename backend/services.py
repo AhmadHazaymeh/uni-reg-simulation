@@ -386,7 +386,7 @@ def update_section_service(section_id, data):
             data.get('instructor_name'), data.get('delivery_mode'), data.get('capacity', 50), section_id
         ))
 
-        # 4. --- منطق الإشعارات الذكي ---
+        # 4. ---  الإشعارات  ---
         cursor.execute("""
             SELECT st.student_id, c.title, s.section_num, c.dept_id
             FROM section s
@@ -533,7 +533,7 @@ def delete_section_service(section_id, keep_votes=True):
         cursor.close()
         conn.close()
 
-# --- دوال الإشعارات الجديدة للطلاب ---
+# ---  الإشعارات للطلاب ---
 def get_student_notifications_service(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -589,7 +589,7 @@ def create_student_service(data):   # sign up
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True) 
     try:
-        # التعديل الأول: التحقق من التكرار داخل نفس الجامعة فقط (باستخدام uni_id)
+        #  التحقق من التكرار داخل نفس الجامعة فقط (باستخدام uni_id)
         query_check = "SELECT student_id, email FROM student WHERE (student_id = %s OR email = %s) AND uni_id = %s"
         cursor.execute(query_check, (data['student_id'], data['email'], uni_id))
         existing_student = cursor.fetchone()
@@ -600,7 +600,7 @@ def create_student_service(data):   # sign up
             if existing_student['email'] == data['email']:
                 return {"status": "error", "message": "عذراً، هذا البريد الإلكتروني مستخدم بالفعل في هذه الجامعة"}
 
-        # التعديل الثاني: إضافة uni_id لعملية الإدخال
+        # اإضافة uni_id لعملية الإدخال
         query_insert = "INSERT INTO student (student_id, name, email, password, uni_id) VALUES (%s, %s, %s, %s, %s)"
         cursor.execute(query_insert, (
             data['student_id'], 
@@ -814,7 +814,7 @@ def admin_add_staff_service(data):
             data['password'], 
             data['role'], 
             data.get('dept_id'),
-            uni_id # القيمة الجديدة التي تضمن العزل
+            uni_id #  تضمن العزل
         ))
         
         conn.commit()
@@ -925,7 +925,7 @@ def get_hod_analytics_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # أضفنا شرط الفلترة WHERE c.dept_id = %s
+        #  شرط الفلترة WHERE c.dept_id = %s
         query = """
             SELECT s.section_id, c.course_code, c.title, s.section_num, s.capacity, s.days, s.start_time, s.end_time,
             (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
@@ -939,7 +939,7 @@ def get_hod_analytics_service(dept_id):
         
         reports = []
         for sec in sections:
-            # حساب نسبة الإقبال (تجنب القسمة على صفر إذا السعة مش مدخلة صح)
+            # حساب نسبة الإقبال تجنب القسمة على صفر إذا السعة مش مدخلة صح
             capacity = sec['capacity'] if sec['capacity'] > 0 else 50
             demand_pct = (sec['vote_count'] / capacity) * 100
             
@@ -984,7 +984,7 @@ def check_time_overlap(days1, start1, end1, days2, start2, end2):
     return (s1 < e2) and (s2 < e1)
 
 
-# ---  ميزة التقرير النهائي لرئيس القسم (النسخة الذكية الشاملة) ---
+# ---  التقرير النهائي لرئيس القسم ) ---
 def get_hod_final_report_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -1062,9 +1062,8 @@ def get_hod_final_report_service(dept_id):
                 elif fill_ratio < 0.8:
                     available_sections.append(sec)
 
-                # ---------------------------------------------------------
-                # الخوارزمية المركزية للقرارات (The Core Brain)
-                # ---------------------------------------------------------
+                
+                # The Core Brain of the Report: نصائح  مبنية على نسبة الإقبال، نوع المادة، مستوى السنة، والتعارضات الزمنية  
                 
                 if fill_ratio >= 0.8:
                     if waitlist_count > 0:
@@ -1095,22 +1094,20 @@ def get_hod_final_report_service(dept_id):
                     if not conflict_found:
                         if is_mandatory:
                             if course_year == 4:
-                                advice = f"⚠️ طوارئ خريجين: بالرغم من ضعف الإقبال ({percent_text}%)، هذه المادة (إجبارية سنة رابعة). تُطرح كدراسة خاصة لمنع تأخير التخرج."
+                                advice = f"⚠️  خريجين: بالرغم من ضعف الإقبال ({percent_text}%)، هذه المادة (إجبارية سنة رابعة). تُطرح لمنع تأخير التخرج."
                                 proposed_sections.append(format_section_data(sec, actual_capacity, advice))
                             else:
                                 insights.append(f"إدارة موارد: الشعبة #{sec['section_num']} إقبالها ضعيف ({percent_text}%). لكونها ({course_category})، تُدمج مع شعبة أخرى أو تُطرح بقاعة صغيرة جداً.")
                         else:
                             insights.append(f"إلغاء: تم استبعاد الشعبة #{sec['section_num']} (إقبال {percent_text}%). لكونها ({course_category})، يُوجه الطلاب لمواد اختيارية بديلة.")
 
-            # ---------------------------------------------------------
-            # خوارزمية التوجيه الذكي (Smart Re-routing)
-            # ---------------------------------------------------------
+            #  Re-routing
             if waitlisted_sections and available_sections:
                 for w_sec in waitlisted_sections:
                     for a_sec in available_sections:
                         available_seats = a_sec['capacity'] - a_sec['vote_count']
                         if available_seats > 0:
-                            insights.append(f"💡 توجيه ذكي: الشعبة #{w_sec['section_num']} ممتلئة ولديها {w_sec['waitlist_count']} طلاب بالانتظار. بدلاً من فتح شعبة جديدة، يُنصح بتوجيه هؤلاء الطلاب للشعبة #{a_sec['section_num']} لاستغلال {available_seats} مقعد فارغ فيها.")
+                            insights.append(f"💡 توجيه : الشعبة #{w_sec['section_num']} ممتلئة ولديها {w_sec['waitlist_count']} طلاب بالانتظار. بدلاً من فتح شعبة جديدة، يُنصح بتوجيه هؤلاء الطلاب للشعبة #{a_sec['section_num']} لاستغلال {available_seats} مقعد فارغ فيها.")
                             break 
 
             if len(proposed_sections) == 0 and len(insights) == 0:
@@ -1157,7 +1154,7 @@ def format_section_data(sec, actual_capacity, advice):
         'advice': advice
     }
 
-# دالة مساعدة لتنظيف الكود وترتيب البيانات
+#Cleaned up 
 def format_section_data(sec, actual_capacity, advice):
     return {
         'section_num': sec['section_num'],

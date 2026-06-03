@@ -1,0 +1,319 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam BackgroundColor #FFFFFF
+skinparam roundcorner 5
+
+skinparam class {
+  BackgroundColor #F8FAFC
+  BorderColor #2563EB
+  ArrowColor #475569
+  FontName "Segoe UI"
+  FontSize 12
+}
+
+title University Registration Simulation System - Detailed Class Diagram
+
+package "Database Connector Layer" {
+  class database_py <<Utility>> {
+    + db_config: dict
+    + get_db_connection(): mysql.connector.connection.MySQLConnection
+  }
+}
+
+package "Presentation & Controller Layer (app.py)" {
+  class CustomJSONProvider {
+    + default(obj: Object): Object
+  }
+  
+  class FlaskApp <<Controller>> {
+    + staff_login(): JSON
+    + student_login(): JSON
+    + register_student(): JSON
+    + get_catalog(): JSON
+    + manage_plans(): JSON
+    + delete_study_plan(plan_id: int): JSON
+    + get_plan_courses(plan_id: int): JSON
+    + link_course_to_plan(plan_id: int): JSON
+    + update_plan_course_details(plan_id: int, course_id: int): JSON
+    + unlink_course_from_plan(plan_id: int, course_id: int): JSON
+    + manage_plan_prerequisites(plan_id: int, course_id: int): JSON
+    + delete_plan_prerequisite(plan_id: int, course_id: int): JSON
+    + update_section_route(section_id: int): JSON
+    + delete_section_route(section_id: int): JSON
+    + publish_schedule(): JSON
+    + manage_sections(): JSON
+    + get_student_schedule(): JSON
+    + student_vote(): JSON
+    + remove_vote(): JSON
+    + get_student_votes(student_id: int): JSON
+    + get_all_staff(): JSON
+    + get_all_students(): JSON
+    + delete_staff(staff_id: int): JSON
+    + add_staff(): JSON
+    + update_staff(staff_id: int): JSON
+    + update_student(student_id: String): JSON
+    + get_departments(): JSON
+    + get_hod_analytics(): JSON
+    + get_hod_final_report(): JSON
+    + get_universities(): JSON
+    + add_course(): JSON
+    + update_course_route(course_id: int): JSON
+    + delete_course_route(course_id: int): JSON
+    + get_student_notifications(student_id: String): JSON
+    + mark_notifications_read(student_id: String): JSON
+    + join_waitlist(): JSON
+    + leave_waitlist(): JSON
+    + get_student_waitlist(student_id: String): JSON
+  }
+}
+
+package "Data Validation Layer (validators.py)" {
+  class validators_py <<Utility>> {
+    + validate_login_data(data: dict): list
+    + validate_student_login_data(data: dict, id_pattern: String): list
+    + validate_student_data(data: dict, email_domain: String, id_pattern: String): list
+    + validate_course_data(data: dict): list
+    + validate_plan_data(data: dict): list
+    + validate_section_data(data: dict): list
+    + validate_vote_data(data: dict): list
+    + validate_plan_course_link(data: dict): list
+  }
+}
+
+package "Business Logic Tier (services.py)" {
+  class S_AuthService {
+    + SECRET_KEY: String = "JUST_SECRET_2025"
+    + login_staff_service(email: String, password: String, uni_id: int): dict
+    + login_student_service(student_id: String, password: String, uni_id: int): dict
+  }
+
+  class S_AdminService {
+    + admin_get_all_staff_service(uni_id: int): list
+    + admin_get_all_students_service(uni_id: int): list
+    + admin_add_staff_service(data: dict): dict
+    + admin_update_staff_service(staff_id: int, data: dict): dict
+    + admin_update_student_service(student_id: String, data: dict): dict
+    + admin_get_all_departments_service(uni_id: int): list
+    + delete_staff_service(staff_id: int): dict
+    + admin_add_university_service(data: dict): dict
+    + admin_update_university_service(uni_id: int, data: dict): dict
+    + admin_delete_university_service(uni_id: int): dict
+    + admin_add_faculty_service(data: dict): dict
+    + admin_update_faculty_service(fac_id: int, data: dict): dict
+    + admin_delete_faculty_service(fac_id: int): dict
+    + admin_add_department_service(data: dict): dict
+    + admin_update_department_service(dept_id: int, data: dict): dict
+    + admin_delete_department_service(dept_id: int): dict
+  }
+
+  class S_AcademicService {
+    + get_all_plans_service(dept_id: int): list
+    + create_study_plan_service(plan_name: String, dept_id: int, total_hours: int): dict
+    + delete_study_plan_service(plan_id: int): dict
+    + get_all_courses_catalog_service(dept_id: int): list
+    + get_courses_by_plan_service(plan_id: int): list
+    + update_plan_course_details_service(plan_id: int, course_id: int, data: dict): dict
+    + link_course_to_plan_service(plan_id: int, data: dict): dict
+    + remove_course_from_plan_service(plan_id: int, course_id: int): dict
+    + add_prerequisite_service(plan_id: int, course_id: int, prereq_id: int, req_type: String): dict
+    + get_course_prereqs_service(plan_id: int, course_id: int): list
+    + delete_prerequisite_service(plan_id: int, course_id: int, prereq_id: int, req_type: String): dict
+    + add_new_course_service(data: dict): dict
+    + update_course_service(course_id: int, data: dict): dict
+    + delete_course_service(course_id: int): dict
+    + get_university_settings(uni_id: int): dict
+  }
+
+  class S_SchedulingService {
+    + check_schedule_conflict(cursor: Object, days: String, start_time: time, end_time: time, room_id: String, instructor_name: String, exclude_id: int): dict
+    + create_section_service(data: dict): dict
+    + update_section_service(section_id: int, data: dict): dict
+    + get_all_sections_service(dept_id: int): list
+    + get_student_schedule_service(student_id: String): list
+    + delete_section_service(section_id: int, keep_votes: boolean): dict
+    + publish_schedule_service(dept_id: int): dict
+  }
+
+  class S_VotingWaitlistService {
+    + create_student_service(data: dict): dict
+    + submit_student_vote_service(data: dict): dict
+    + get_student_votes_service(student_id: String): list
+    + remove_vote_service(student_id: String, section_id: int): dict
+    + get_student_notifications_service(student_id: String): list
+    + mark_notifications_read_service(student_id: String): dict
+    + join_waitlist_service(student_id: String, section_id: int): dict
+    + leave_waitlist_service(student_id: String, section_id: int): dict
+    + get_student_waitlist_service(student_id: String): list
+  }
+
+  class S_HoDAnalyticsService {
+    + get_hod_analytics_service(dept_id: int): list
+    + get_hod_final_report_service(dept_id: int): dict
+    + check_time_overlap(days1: String, start1: Object, end1: Object, days2: String, start2: Object, end2: Object): boolean
+  }
+}
+
+package "Domain Entities / Data Models" {
+  class University {
+    + uni_id: int [PK]
+    + uni_name: varchar(150)
+    + email_domain: varchar(50)
+    + id_pattern: varchar(100)
+  }
+
+  class Faculty {
+    + fac_id: int [PK]
+    + fac_name: varchar(150)
+    + uni_id: int [FK]
+  }
+
+  class Department {
+    + dept_id: int [PK]
+    + dept_name: varchar(100)
+    + fac_id: int [FK]
+  }
+
+  class Staff {
+    + staff_id: int [PK]
+    + official_id: varchar(20)
+    + name: varchar(100)
+    + email: varchar(100)
+    + password: varchar(255)
+    + role: enum('clerk', 'admin', 'hod')
+    + dept_id: int [FK]
+    + uni_id: int [FK]
+  }
+
+  class Student {
+    + student_id: varchar(20) [PK]
+    + name: varchar(100)
+    + email: varchar(100)
+    + password: varchar(255)
+    + created_at: timestamp
+    + plan_id: int [FK]
+    + dept_id: int [FK]
+    + uni_id: int [FK]
+  }
+
+  class Course {
+    + course_id: int [PK]
+    + course_code: varchar(20)
+    + title: varchar(100)
+    + line_number: int
+    + credit_hours: int
+    + theory_hours: int
+    + practical_hours: int
+    + dept_id: int [FK]
+  }
+
+  class StudyPlan {
+    + plan_id: int [PK]
+    + plan_name: varchar(100)
+    + total_hours: int
+    + dept_id: int [FK]
+  }
+
+  class PlanCourse <<Pivot>> {
+    + plan_id: int [PK, FK]
+    + course_id: int [PK, FK]
+    + custom_title: varchar(255)
+    + custom_credit_hours: int
+    + custom_theory_hours: int
+    + custom_practical_hours: int
+    + year_level: int
+    + semester: int
+    + category: varchar(100)
+    + delivery_mode: varchar(50)
+    + is_confirmed: tinyint
+  }
+
+  class Prerequisites {
+    + id: int [PK]
+    + plan_id: int [FK]
+    + course_id: int [FK]
+    + prereq_id: int [FK]
+    + req_type: enum('Success', 'Study')
+  }
+
+  class Section {
+    + section_id: int [PK]
+    + course_id: int [FK]
+    + section_num: int
+    + days: varchar(100)
+    + start_time: time
+    + end_time: time
+    + instructor_name: varchar(100)
+    + room_id: varchar(20)
+    + delivery_mode: enum('On-site', 'Remote', 'Hybrid')
+    + capacity: int
+    + enrolled_count: int
+    + is_published: tinyint
+  }
+
+  class Vote {
+    + vote_id: int [PK]
+    + student_id: varchar(20) [FK]
+    + course_id: int [FK]
+    + section_id: int [FK]
+    + vote_date: timestamp
+  }
+
+  class Waitlist {
+    + waitlist_id: int [PK]
+    + student_id: varchar(20) [FK]
+    + section_id: int [FK]
+    + created_at: timestamp
+  }
+
+  class StudentNotification {
+    + id: int [PK]
+    + student_id: varchar(20) [FK]
+    + message: varchar(255)
+    + is_read: tinyint
+    + created_at: timestamp
+    + is_published: tinyint
+    + dept_id: int [FK]
+  }
+}
+
+' Structural Hierarchy Dependencies
+University "1" *-- "0..*" Faculty
+Faculty "1" *-- "0..*" Department
+Department "1" -- "0..*" Staff
+Department "1" -- "0..*" Student
+University "1" -- "0..*" Staff
+University "1" -- "0..*" Student
+
+' Academic Plan Dependencies
+Department "1" -- "0..*" StudyPlan
+StudyPlan "1" *-- "1..*" PlanCourse
+Course "1" -- "0..*" PlanCourse
+PlanCourse "1" -- "0..*" Prerequisites
+
+' Scheduling & Voting Dependencies
+Course "1" -- "0..*" Section
+Student "1" -- "0..*" Vote
+Section "1" -- "0..*" Vote
+Student "1" -- "0..*" Waitlist
+Section "1" -- "0..*" Waitlist
+Student "1" -- "0..*" StudentNotification
+
+' Application Flow Realization
+FlaskApp ..> database_py : Uses
+FlaskApp ..> validators_py : Invokes Validations
+FlaskApp --> S_AuthService
+FlaskApp --> S_AdminService
+FlaskApp --> S_AcademicService
+FlaskApp --> S_SchedulingService
+FlaskApp --> S_VotingWaitlistService
+FlaskApp --> S_HoDAnalyticsService
+
+S_AuthService ..> database_py
+S_AdminService ..> database_py
+S_AcademicService ..> database_py
+S_SchedulingService ..> database_py
+S_VotingWaitlistService ..> database_py
+S_HoDAnalyticsService ..> database_py
+
+@enduml

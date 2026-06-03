@@ -1,0 +1,40 @@
+@startuml
+!theme plain
+skinparam state {
+  BackgroundColor #F0FDF4
+  BorderColor #10B981
+  ArrowColor #475569
+  FontName Arial
+}
+skinparam note {
+  BackgroundColor #EFF6FF
+  BorderColor #3B82F6
+}
+
+title State Machine Diagram 2: Student Voting & Waitlist State
+
+[*] --> Unregistered : Student Login / Views Schedule
+
+state Unregistered {
+  note "No record in 'vote' or 'waitlist' tables\nfor this specific section." as N1
+}
+
+Unregistered --> Voted : submit_student_vote_service(data)\n[Condition: current_votes < capacity]
+
+state Voted {
+  note "Student ID added to 'vote' table." as N2
+}
+
+Unregistered --> Waitlisted : join_waitlist_service(data)\n[Condition: current_votes >= capacity\n&& waitlist_count < 10]
+
+state Waitlisted {
+  note "Student ID added to 'waitlist' table." as N3
+}
+
+Voted --> Unregistered : remove_vote_service(student_id, section_id)\n[Action: DELETE FROM vote]
+
+Waitlisted --> Unregistered : leave_waitlist_service(student_id, section_id)\n[Action: DELETE FROM waitlist]
+
+Waitlisted --> Voted : System Auto-Promotion (FIFO)\n[Triggered Event: Another student calls remove_vote_service()\nAction: Move from waitlist to vote & Send Notification]
+
+@enduml

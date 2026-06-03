@@ -1,0 +1,73 @@
+@startuml
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 150
+skinparam ParticipantPadding 10
+
+title Sequence Diagram 3: HoD Final Report Generation
+
+actor "Head of Department" as HoD
+participant "HoDDashboard.js" as UI
+participant "api.js\n(Axios)" as API
+participant "app.py\n(Flask Router)" as Router
+participant "services.py" as Service
+database "MySQL\nDatabase" as DB
+
+HoD -> UI : Clicks "System Report & Recommendations"
+activate UI
+UI -> API : getHODFinalReport(deptId)
+activate API
+API -> Router : GET /api/hod/final_report
+activate Router
+
+Router -> Service : get_hod_final_report_service(dept_id)
+activate Service
+
+Service -> DB : SELECT courses, sections, plan category,\nvote_count, waitlist_count (Huge JOIN Query)
+activate DB
+DB --> Service : all_sections_data
+deactivate DB
+
+Service -> Service : Filter popular_mandatory_sections
+
+loop for each course in courses_summary
+    loop for each section in course.sections
+        Service -> Service : Calculate fill_ratio (vote_count / capacity)
+        
+        alt fill_ratio >= 0.8
+            Service -> Service : Add "Offer Immediately" to proposed_sections
+        else fill_ratio >= 0.5
+            Service -> Service : Add "Moderate Demand, Change Room" to proposed_sections
+        else low demand (< 0.5)
+            opt if is_mandatory
+                Service -> Service : check_time_overlap(days, times) with popular sections
+                activate Service
+                Service --> Service : conflict_found (Boolean)
+                deactivate Service
+                
+                alt conflict_found == True
+                    Service -> Service : Append "Hidden Conflict Detected" to insights
+                else year_level == 4
+                    Service -> Service : Append "Graduating Seniors Emergency" to proposed_sections
+                end
+            end
+        end
+    end
+    
+    opt waitlisted_sections AND available_sections exist
+        Service -> Service : Append "Smart Re-routing" to insights
+    end
+end
+
+Service --> Router : return {"status": "success", "report": final_report}
+deactivate Service
+
+Router --> API : JSON HTTP 200 OK
+deactivate Router
+API --> UI : return response
+deactivate API
+
+UI -> UI : map(finalReport) and render Report Boxes
+UI -> HoD : Display Intelligent Insights & Proposed Actions
+deactivate UI
+@enduml

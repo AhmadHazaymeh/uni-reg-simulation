@@ -1,0 +1,74 @@
+@startuml
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 150
+skinparam ParticipantPadding 10
+
+title Sequence Diagram 2: Automated Waitlist Resolution on Vote Removal
+
+actor "Student A\n(Removing Vote)" as StudentA
+participant "StudentDashboard.js" as UI
+participant "api.js\n(Axios)" as API
+participant "app.py\n(Flask Router)" as Router
+participant "services.py" as Service
+database "MySQL\nDatabase" as DB
+actor "Student B\n(Waitlisted)" as StudentB
+
+StudentA -> UI : Clicks "سحب" (Remove Vote)
+activate UI
+UI -> API : removeVote({student_id, section_id})
+activate API
+API -> Router : POST /api/student/vote/remove
+activate Router
+
+Router -> Service : remove_vote_service(student_id, section_id)
+activate Service
+
+Service -> DB : DELETE FROM vote (Student A)
+activate DB
+DB --> Service : success
+deactivate DB
+
+note over Service, DB : FIFO Waitlist Logic
+Service -> DB : SELECT * FROM waitlist WHERE section_id = X ORDER BY created_at ASC LIMIT 1
+activate DB
+DB --> Service : first_in_line (Student B)
+deactivate DB
+
+opt If Waitlist is not empty
+    Service -> DB : DELETE FROM waitlist WHERE waitlist_id = Z
+    activate DB
+    DB --> Service : success
+    deactivate DB
+    
+    Service -> DB : INSERT INTO vote (student_id, section_id) VALUES (Student B, X)
+    activate DB
+    DB --> Service : success
+    deactivate DB
+    
+    Service -> DB : SELECT course info (for notification)
+    activate DB
+    DB --> Service : sec_info
+    deactivate DB
+    
+    Service -> DB : INSERT INTO student_notification (For Student B)
+    activate DB
+    DB --> Service : success
+    deactivate DB
+end
+
+Service -> DB : commit()
+Service --> Router : return {"status": "success"}
+deactivate Service
+
+Router --> API : JSON HTTP 200 OK
+deactivate Router
+API --> UI : return response
+deactivate API
+
+UI -> UI : fetchAndGroupData() (Refresh UI)
+UI -> StudentA : Show SweetAlert(""Voice removed"")
+deactivate UI
+
+note right of StudentB: Student B receives notification\non next login via fetchNotifications()
+@enduml

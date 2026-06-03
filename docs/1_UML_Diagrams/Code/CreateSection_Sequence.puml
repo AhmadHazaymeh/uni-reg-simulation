@@ -1,0 +1,74 @@
+@startuml
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 150
+skinparam ParticipantPadding 10
+
+title Sequence Diagram 1: Section Creation & Smart Conflict Detection
+
+actor "Data Entry Clerk" as Clerk
+participant "ScheduleTab.js\n(React)" as UI
+participant "api.js\n(Axios)" as API
+participant "app.py\n(Flask Router)" as Router
+participant "validators.py" as Validator
+participant "services.py" as Service
+database "MySQL\nDatabase" as DB
+
+Clerk -> UI : Fills section form & clicks "Add Section"
+activate UI
+UI -> UI : validateSchedule() (Local UI Check)
+
+UI -> API : createSection(payload)
+activate API
+API -> Router : POST /api/sections
+activate Router
+
+Router -> Validator : validate_section_data(data)
+activate Validator
+Validator --> Router : errors (if any)
+deactivate Validator
+
+Router -> Service : create_section_service(data)
+activate Service
+Service -> Service : check_schedule_conflict(\ncursor, days, start_time, end_time, room, instructor)
+activate Service
+Service -> DB : SELECT potential_conflicts (Overlap Check)
+activate DB
+DB --> Service : return potential_conflicts
+deactivate DB
+Service --> Service : Return conflict status (None)
+deactivate Service
+
+Service -> DB : SELECT MAX(section_num)
+activate DB
+DB --> Service : next_num
+deactivate DB
+
+Service -> DB : INSERT INTO section
+activate DB
+DB --> Service : success
+deactivate DB
+
+note over Service, DB : Smart Notification Logic
+Service -> DB : SELECT student_id FROM student JOIN plan_course ...
+activate DB
+DB --> Service : affected_students
+deactivate DB
+
+Service -> DB : INSERT INTO student_notification (Draft Mode)
+activate DB
+DB --> Service : success
+deactivate DB
+
+Service --> Router : return {"status": "success", "section_num": next_num}
+deactivate Service
+
+Router --> API : JSON HTTP 201 Created
+deactivate Router
+API --> UI : return response
+deactivate API
+
+UI -> UI : fetchSections() (Refresh Data)
+UI -> Clerk : Show SweetAlert(" "Successfully completed"")
+deactivate UI
+@enduml

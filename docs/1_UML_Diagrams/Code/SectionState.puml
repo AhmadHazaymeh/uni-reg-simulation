@@ -1,0 +1,45 @@
+@startuml
+!theme plain
+skinparam state {
+  BackgroundColor #F8FAFC
+  BorderColor #2563EB
+  ArrowColor #475569
+  FontName Arial
+}
+skinparam note {
+  BackgroundColor #FEF3C7
+  BorderColor #F59E0B
+}
+
+title State Machine Diagram 1: Section Lifecycle State
+
+[*] --> Draft : create_section_service(data)\n[Action: is_published = 0]
+
+state Draft {
+  note "Section is visible only to Admin/Clerks.\nNot visible to Students." as N1
+}
+
+Draft --> Draft : update_section_service(data)\n[Condition: No Conflicts]
+Draft --> Published : publish_schedule_service(dept_id)\n[Action: is_published = 1]
+
+state Published {
+  note "Visible to students.\nVoting is open." as N2
+}
+
+Published --> Published : update_section_service(data)
+Published --> FullCapacity : student_vote()\n[Condition: current_votes == capacity]
+
+state FullCapacity {
+  note "Voting locked.\nWaitlist is activated." as N3
+}
+
+FullCapacity --> Published : remove_vote_service()\n[Condition: Waitlist is empty\n& current_votes < capacity]
+FullCapacity --> FullCapacity : remove_vote_service()\n[Condition: Waitlist is NOT empty\nAction: Auto-promote waitlisted student]
+
+Published --> Deleted : delete_section_service(id, keep_votes)
+Draft --> Deleted : delete_section_service(id, keep_votes)
+FullCapacity --> Deleted : delete_section_service(id, keep_votes)
+
+Deleted --> [*] : [Action: Removed from DB or flagged]
+
+@enduml
