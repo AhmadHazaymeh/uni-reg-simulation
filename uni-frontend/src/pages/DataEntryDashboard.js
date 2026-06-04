@@ -36,12 +36,12 @@ const DataEntryDashboard = () => {
     const [newPrereqId, setNewPrereqId] = useState('');
     const [newPrereqType, setNewPrereqType] = useState('Success');
 
-    const categories = [
-        { id: 'إجباري جامعة', label: 'متطلبات جامعة إجبارية' },
-        { id: 'اختياري جامعة', label: 'متطلبات جامعة اختيارية' },
-        { id: 'إجباري كلية', label: 'متطلبات كلية إجبارية' },
+   const categories = [
+        { id: 'متطلب جامعة إجباري', label: 'متطلبات جامعة إجبارية' },
+        { id: 'متطلب جامعة اختياري', label: 'متطلبات جامعة اختيارية' },
+        { id: 'متطلب كلية إجباري', label: 'متطلبات كلية إجبارية' },
         { id: 'إجباري تخصص', label: 'متطلبات تخصص إجبارية' },
-        { id: 'اختياري تخصص', label: 'متطلبات تخصص اختيارية' }
+        { id: 'متطلب قسم اختياري', label: 'متطلبات قسم اختيارية' }
     ];
 
     const fetchData = async () => {
@@ -89,12 +89,12 @@ const DataEntryDashboard = () => {
         return Swal.fire({ icon: 'warning', title: 'رقم غير منطقي', text: 'يجب أن يكون عدد الساعات 1 على الأقل.' });
     }
 
-    const deptId = localStorage.getItem('dept_id'); // جلب رقم القسم
+    const deptId = localStorage.getItem('dept_id'); 
 
     try {
         const res = await api.createPlan({
             plan_name: newPlanName,
-            dept_id: deptId, // إرسال القسم للباك إند
+            dept_id: deptId,
             total_hours: hours
         });
         if (res.data.status === 'success') {
@@ -283,7 +283,7 @@ const DataEntryDashboard = () => {
                 </div>
             )}
 
-            {/* Edit Plan Courses  */}
+            {/* Plan Courses  */}
             {showEditModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalCard}>

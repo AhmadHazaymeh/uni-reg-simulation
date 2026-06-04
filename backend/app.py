@@ -64,21 +64,17 @@ def register_student():
     data = request.json or {}
     uni_id = data.get('uni_id')
     
-    # 1. التحقق من إرسال رقم الجامعة
     if not uni_id:
         return jsonify({"status": "error", "message": "يجب تحديد الجامعة أولاً"}), 400
 
-    # 2. جلب إعدادات الجامعة (الدومين ونمط الرقم الجامعي)
     uni_settings = services.get_university_settings(uni_id)
     if not uni_settings:
         return jsonify({"status": "error", "message": "الجامعة المختارة غير موجودة بالنظام"}), 404
 
-    # 3. التحقق الديناميكي
     errors = validators.validate_student_data(data, uni_settings['email_domain'], uni_settings['id_pattern'])
     if errors:
         return jsonify({"errors": errors}), 400
     
-    # 4. إتمام التسجيل
     result = services.create_student_service(data)
     status_code = 201 if result.get('status') == 'success' else 400
     return jsonify(result), status_code
@@ -116,6 +112,7 @@ def manage_plans():
 def delete_study_plan(plan_id):
     return jsonify(services.delete_study_plan_service(plan_id))
 
+#student reg
 
 @app.route('/api/plans/<int:plan_id>/courses', methods=['GET'])
 def get_plan_courses(plan_id):
@@ -135,7 +132,7 @@ def update_plan_course_details(plan_id, course_id):
 def unlink_course_from_plan(plan_id, course_id):
     return jsonify(services.remove_course_from_plan_service(plan_id, course_id))
 
-#   المتطلبات السابقة 
+#   prereq courses  
 
 @app.route('/api/plans/<int:plan_id>/courses/<int:course_id>/prereqs', methods=['GET', 'POST'])
 def manage_plan_prerequisites(plan_id, course_id):
@@ -213,7 +210,7 @@ def manage_sections():
 
 
 
-#  الطالب والتصويت  
+#  student  and votes
 
 @app.route('/api/student/schedule', methods=['GET'])
 def get_student_schedule():
@@ -260,7 +257,6 @@ def get_all_staff():
     if not uni_id:
         return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
         
-    # تمرير uni_id للدالة في services
     result = services.admin_get_all_staff_service(uni_id)
     return jsonify(result)
 
@@ -271,15 +267,12 @@ def get_all_students():
     if not uni_id:
         return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
         
-    # تمرير uni_id للدالة في services
     result = services.admin_get_all_students_service(uni_id)
     return jsonify(result)
 
 
-# هاد الراوت مشان حذف الموظفين (مدخلي البيانات أو رؤساء الأقسام)
 @app.route('/api/staff/<int:staff_id>', methods=['DELETE'])
 def delete_staff(staff_id):
-    # بننادي السيرفس اللي كتبناه قبل شوي
     result = services.delete_staff_service(staff_id)
     return jsonify(result)
 
@@ -290,13 +283,11 @@ def add_staff():
     status_code = 201 if result['status'] == 'success' else 400
     return jsonify(result), status_code
 
-# تحديث موظف
 @app.route('/api/admin/staff/<int:staff_id>', methods=['PUT'])
 def update_staff(staff_id):
     data = request.json or {}
     return jsonify(services.admin_update_staff_service(staff_id, data))
 
-# تحديث طالب
 @app.route('/api/admin/students/<student_id>', methods=['PUT'])
 def update_student(student_id):
     data = request.json or {}
@@ -305,7 +296,6 @@ def update_student(student_id):
 
 @app.route('/api/admin/departments', methods=['GET'])
 def get_departments():
-    # تعديل: جلب الأقسام التابعة للجامعة المحددة فقط
     uni_id = request.args.get('uni_id')
     if not uni_id:
         return jsonify({"status": "error", "message": "معرف الجامعة مطلوب"}), 400
@@ -318,19 +308,17 @@ def get_departments():
 # HoD Analytics Route
 @app.route('/api/hod/analytics', methods=['GET'])
 def get_hod_analytics():
-    # جلب رقم القسم من المعاملات المرسلة في الطلب
     dept_id = request.args.get('dept_id')
     if not dept_id:
         return jsonify({"status": "error", "message": "معرف القسم مطلوب"}), 400
         
-    # استدعاء دالة الخدمة التي تقوم بتحليل البيانات
     result = services.get_hod_analytics_service(dept_id)
     return jsonify(result)
 
 
 
 
-# Route جديد للتقرير النهائي 
+#   للتقرير النهائي 
 @app.route('/api/hod/final_report', methods=['GET'])
 def get_hod_final_report():
     dept_id = request.args.get('dept_id')
@@ -341,7 +329,7 @@ def get_hod_final_report():
 
 @app.route('/api/universities', methods=['GET'])
 def get_universities():
-    # هذا المسار يجلب أسماء الجامعات والكليات التابعة لها لعرضها في الشاشة الرئيسية
+    
     conn = services.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -396,7 +384,7 @@ def delete_course_route(course_id):
 
 
 
-#  اشعارات الطالب
+# student notifications
 @app.route('/api/student/<student_id>/notifications', methods=['GET'])
 def get_student_notifications(student_id):
     return jsonify(services.get_student_notifications_service(student_id))
@@ -425,7 +413,7 @@ def get_student_waitlist(student_id):
 
 
 
-# --- Academic Structure Endpoints ---
+# Academic Structure  
 
 @app.route('/api/admin/universities', methods=['POST'])
 def add_university():

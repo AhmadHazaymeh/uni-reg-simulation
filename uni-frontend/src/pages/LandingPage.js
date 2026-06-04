@@ -31,7 +31,6 @@ const LandingPage = () => {
     const selectedFac = selectedUni?.faculties?.find(f => f.id.toString() === selectedFacId.toString());
     const selectedDept = selectedFac?.departments?.find(d => d.id.toString() === selectedDeptId.toString());
 
-    //   تغيير الجامعة لتخزين البيانات في localStorage
     const handleUniChange = (e) => {
         const uniId = e.target.value;
         setSelectedUniId(uniId);
@@ -93,7 +92,7 @@ const LandingPage = () => {
                         </select>
                     </div>
 
-                    {/* اختيار الكلية     ) */}
+                    {/* اختيار الكلية  ) */}
                     <div style={{...styles.inputGroup, opacity: selectedUniId ? 1 : 0.4, pointerEvents: selectedUniId ? 'auto' : 'none'}}>
                         <label style={styles.label}><BookOpen size={16}/> اختر الكلية:</label>
                         <select style={styles.select} value={selectedFacId} onChange={(e) => { setSelectedFacId(e.target.value); setSelectedDeptId(''); }}>

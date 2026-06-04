@@ -10,13 +10,12 @@ def validate_login_data(data):  # staff login
         errors.append("كلمة المرور مطلوبة")
     return errors
 
-def validate_student_login_data(data, id_pattern): # دالة تسجيل الدخول 
+def validate_student_login_data(data, id_pattern): 
     errors = []
     student_id = str(data.get('student_id', '')).strip()
     
     if not student_id:
         errors.append("الرقم الجامعي مطلوب للدخول")
-    # إضافة تحقق من النمط حتى عند تسجيل الدخول لضمان عزل 
     elif not re.match(id_pattern, student_id):
         errors.append("عذراً، هذا الرقم لا يتبع تنسيق الأرقام الجامعية لهذه الجامعة")
         
@@ -33,12 +32,12 @@ def validate_student_data(data, email_domain, id_pattern): #  التسجيل
     
     if not student_id:
         errors.append("الرقم الجامعي مطلوب")
-    elif not re.match(id_pattern, student_id): # التحقق الديناميكي من النمط
+    elif not re.match(id_pattern, student_id):
         errors.append("صيغة الرقم الجامعي غير صحيحة لهذه الجامعة")
 
     if not email:
         errors.append("البريد الإلكتروني مطلوب")
-    elif not email.endswith(email_domain): # التحقق الديناميكي من الدومين
+    elif not email.endswith(email_domain): 
         errors.append(f"يجب استخدام البريد الإلكتروني الجامعي الرسمي ({email_domain})")
 
     if not password:
@@ -72,7 +71,6 @@ def validate_plan_data(data):
     if not data.get('plan_name'): 
         errors.append("اسم الخطة مطلوب")
     
-    #  إلغاء حقل التخصص وإضافة حقل القسم
     if not data.get('dept_id'): 
         errors.append("القسم مطلوب لإنشاء الخطة")
 

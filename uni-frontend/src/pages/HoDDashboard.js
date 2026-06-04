@@ -140,7 +140,7 @@ const HoDDashboard = () => {
                 </div>
             )}
 
-            {/* --- بداية ميزة التقرير --- */}
+            {/* --- بداية  التقرير --- */}
             <div 
                 style={{...styles.toggleCard, marginTop: '20px'}} 
                 onClick={() => setShowReport(!showReport)}

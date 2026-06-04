@@ -43,22 +43,25 @@ def login_staff_service(email, password, uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # ا: إضافة uni_id للبحث لضمان العزل التام
         query = """
             SELECT staff_id, name, email, role, dept_id, uni_id 
             FROM staff 
-            WHERE (email = %s OR official_id = %s) AND password = %s AND uni_id = %s
+            WHERE (email = %s OR official_id = %s) AND password = %s
         """
         
-        # تمرير uni_id في الـ parameters
-        cursor.execute(query, (email, email, password, uni_id))
+        cursor.execute(query, (email, email, password))
         user = cursor.fetchone()
 
         if user:
+            if user['role'] != 'admin' and str(user['uni_id']) != str(uni_id):
+                return {"status": "error", "message": "عذراً، هذا الحساب غير مصرح له بالدخول لهذه الجامعة"}
+
+            final_uni_id = uni_id if user['role'] == 'admin' else user['uni_id']
+
             token = jwt.encode({
                 'staff_id': user['staff_id'],
                 'role': user['role'],
-                'uni_id': user['uni_id'],
+                'uni_id': final_uni_id, 
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
             }, SECRET_KEY, algorithm="HS256")
             
@@ -68,12 +71,12 @@ def login_staff_service(email, password, uni_id):
                 "user": {
                     "name": user['name'], 
                     "role": user['role'], 
-                    "dept_id": user['dept_id'], # مفتاح واجهة رئيس القسم ومدخل البيانات
-                    "uni_id": user['uni_id']    # إرجاع رقم الجامعة للفرونت إند
+                    "dept_id": user['dept_id'], 
+                    "uni_id": final_uni_id  
                 }
             }
         
-        return {"status": "error", "message": "بيانات الدخول غير صحيحة أو لا تنتمي لهذه الجامعة"}
+        return {"status": "error", "message": "بيانات الدخول غير صحيحة"}
     finally:
         cursor.close()
         conn.close()
@@ -86,7 +89,6 @@ def login_student_service(student_id, password, uni_id): # : تمرير uni_id
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # التعديل: التحقق من بيانات الدخول مدموجة مع رقم الجامعة المختارة
         query = "SELECT student_id, name, email, plan_id, dept_id, uni_id FROM student WHERE student_id = %s AND password = %s AND uni_id = %s"
         cursor.execute(query, (student_id, password, uni_id))
         student = cursor.fetchone()
@@ -106,7 +108,7 @@ def login_student_service(student_id, password, uni_id): # : تمرير uni_id
                     "id": student['student_id'],
                     "plan_id": student['plan_id'],
                     "dept_id": student['dept_id'],
-                    "uni_id": student['uni_id'] # إرجاع رقم الجامعة للفرونت إند
+                    "uni_id": student['uni_id'] 
                 }
             }
         return {"status": "error", "message": "الرقم الجامعي أو كلمة المرور غير صحيحة لهذه الجامعة"}
@@ -327,7 +329,6 @@ def create_section_service(data):
             data.get('instructor_name'), data.get('room_id'), data['delivery_mode'], data.get('capacity', 50)
         ))
 
-        # ---  الإشعارات: إعلام الطلاب بطرح شعبة جديدة لمادة بخطتهم ---
         cursor.execute("""
             SELECT s.student_id, c.title, c.dept_id
             FROM student s
@@ -357,13 +358,11 @@ def update_section_service(section_id, data):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. جلب البيانات القديمة قبل التحديث للمقارنة
         cursor.execute("SELECT capacity, section_num FROM section WHERE section_id = %s", (section_id,))
         old_data = cursor.fetchone()
         if not old_data:
             return {"status": "error", "message": "الشعبة غير موجودة"}
 
-        # 2. التحقق من التعارضات Conflicts
         conflict = check_schedule_conflict(
             cursor, data['days'], data['start_time'], data['end_time'],
             data.get('room_id'), data.get('instructor_name'), exclude_id=section_id
@@ -383,7 +382,7 @@ def update_section_service(section_id, data):
             data.get('instructor_name'), data.get('delivery_mode'), data.get('capacity', 50), section_id
         ))
 
-        # 4. ---  الإشعارات  ---
+        # 4.   الإشعارات  
         cursor.execute("""
             SELECT st.student_id, c.title, s.section_num, c.dept_id
             FROM section s
@@ -403,13 +402,11 @@ def update_section_service(section_id, data):
             new_capacity = int(data.get('capacity', 0))
             old_capacity = int(old_data['capacity'])
 
-            # صياغة الرسالة بناءً على نوع التعديل
             if new_capacity > old_capacity:
                 msg = f"بشرى سارة: تم زيادة سعة الشعبة #{sec_num} لمادة ({course_title}) لتستوعب عدداً أكبر من الطلاب."
             else:
                 msg = f"تنبيه: تم تحديث بيانات الشعبة #{sec_num} (الموعد/القاعة/السعة) لمادة ({course_title}) المتاحة في خطتك."
             
-            # تخزين الإشعارات كمسودة (غير منشورة) بانتظار زر الاعتماد
             notif_data = [(st['student_id'], msg, dept_id, 0) for st in affected_students]
             
             cursor.executemany(
@@ -509,11 +506,9 @@ def delete_section_service(section_id, keep_votes=True):
             sec_num = students[0]['section_num']
             dept_id = students[0]['dept_id']
             msg = f"تنبيه: تم إلغاء وحذف الشعبة #{sec_num} في مادة ({course_title}) من الجدول الدراسي."
-            # تخزين الإشعار كمسودة (is_published = 0) بانتظار زر الاعتماد
             notif_data = [(st['student_id'], msg, dept_id, 0) for st in students]
             cursor.executemany("INSERT INTO student_notification (student_id, message, dept_id, is_published) VALUES (%s, %s, %s, %s)", notif_data)
 
-        # متابعة الحذف الطبيعي من قاعدة البيانات
         if keep_votes:
             cursor.execute("UPDATE vote SET section_id = NULL WHERE section_id = %s", (section_id,))
         else:
@@ -530,7 +525,7 @@ def delete_section_service(section_id, keep_votes=True):
         cursor.close()
         conn.close()
 
-# ---  الإشعارات للطلاب ---
+#  الإشعارات للطلاب 
 def get_student_notifications_service(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -586,7 +581,6 @@ def create_student_service(data):   # sign up
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True) 
     try:
-        #  التحقق من التكرار داخل نفس الجامعة فقط ( uni_id)
         query_check = "SELECT student_id, email FROM student WHERE (student_id = %s OR email = %s) AND uni_id = %s"
         cursor.execute(query_check, (data['student_id'], data['email'], uni_id))
         existing_student = cursor.fetchone()
@@ -597,14 +591,27 @@ def create_student_service(data):   # sign up
             if existing_student['email'] == data['email']:
                 return {"status": "error", "message": "عذراً، هذا البريد الإلكتروني مستخدم بالفعل في هذه الجامعة"}
 
-        # اإضافة uni_id لعملية الإدخال
-        query_insert = "INSERT INTO student (student_id, name, email, password, uni_id) VALUES (%s, %s, %s, %s, %s)"
+        name = data.get('name') or data.get('full_name') or 'طالب جديد'
+        dept_id = data.get('dept_id')
+        plan_id = data.get('plan_id')
+        year_level = data.get('year_level', 1)
+        specialization = data.get('specialization', 'غير محدد')
+
+        query_insert = """
+            INSERT INTO student 
+            (student_id, name, email, password, uni_id, dept_id, plan_id, year_level, specialization) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
         cursor.execute(query_insert, (
             data['student_id'], 
-            data.get('full_name', 'طالب جديد'),
+            name,
             data['email'], 
             data['password'],
-            uni_id
+            uni_id,
+            dept_id,
+            plan_id,
+            year_level,
+            specialization
         ))
         
         conn.commit()
@@ -651,21 +658,17 @@ def remove_vote_service(student_id, section_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. حذف صوت الطالب المنسحب
         cursor.execute("DELETE FROM vote WHERE student_id = %s AND section_id = %s", (student_id, section_id))
         
-        # 2. البحث عن أول طالب في قائمة الانتظار FIFO
         cursor.execute("SELECT * FROM waitlist WHERE section_id = %s ORDER BY created_at ASC LIMIT 1", (section_id,))
         first_in_line = cursor.fetchone()
         
         if first_in_line:
             lucky_student = first_in_line['student_id']
             
-            # سحبه من قائمة الانتظار وتسجيل صوته 
             cursor.execute("DELETE FROM waitlist WHERE waitlist_id = %s", (first_in_line['waitlist_id'],))
             cursor.execute("INSERT INTO vote (student_id, section_id) VALUES (%s, %s)", (lucky_student, section_id))
             
-            # جلب بيانات المادة لإرسال إشعار للطالب المحظوظ
             cursor.execute("""
                 SELECT c.title, s.section_num, c.dept_id 
                 FROM section s JOIN course c ON s.course_id = c.course_id 
@@ -753,9 +756,8 @@ def admin_get_all_staff_service(uni_id):
                 d.dept_name 
             FROM staff s
             LEFT JOIN department d ON s.dept_id = d.dept_id
-            WHERE s.uni_id = %s
         """
-        cursor.execute(query, (uni_id,))
+        cursor.execute(query)
         return cursor.fetchall() 
     finally:
         cursor.close()
@@ -767,12 +769,11 @@ def admin_get_all_students_service(uni_id):
     cursor = conn.cursor(dictionary = True)
     try:
         query = """
-            SELECT s.student_id, s.name, s.email, p.plan_name 
+            SELECT s.student_id, s.name, s.email, s.uni_id, p.plan_name 
             FROM student s
             LEFT JOIN studyplan p ON s.plan_id = p.plan_id
-            WHERE s.uni_id = %s
         """
-        cursor.execute(query, (uni_id,))
+        cursor.execute(query)
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -783,7 +784,6 @@ def admin_get_all_students_service(uni_id):
 
 
 def admin_add_staff_service(data):
-    # جلب رقم الجامعة من البيانات المرسلة من الفرونت إند
     uni_id = data.get('uni_id')
     
     if not uni_id:
@@ -792,14 +792,12 @@ def admin_add_staff_service(data):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # التحقق من أن الموظف غير مسجل مسبقاً في هذه الجامعة
         cursor.execute("SELECT * FROM staff WHERE (email = %s OR official_id = %s) AND uni_id = %s", 
                        (data['email'], data['official_id'], uni_id))
         
         if cursor.fetchone():
             return {"status": "error", "message": "الإيميل أو الرقم الوظيفي موجود مسبقاً في هذه الجامعة"}
 
-        # إضافة الموظف مع ربطه برقم الجامعة (uni_id)
         query = """
             INSERT INTO staff (official_id, name, email, password, role, dept_id, uni_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -881,14 +879,8 @@ def admin_get_all_departments_service(uni_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # Use JOIN to filter departments based on the faculty's uni_id
-        query = """
-            SELECT d.dept_id, d.dept_name, d.fac_id 
-            FROM department d
-            JOIN faculty f ON d.fac_id = f.fac_id
-            WHERE f.uni_id = %s
-        """
-        cursor.execute(query, (uni_id,))
+        query = "SELECT * FROM department"
+        cursor.execute(query)
         return cursor.fetchall()
     finally:
         cursor.close()
@@ -899,14 +891,11 @@ def delete_staff_service(staff_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # هون بنفذ أمر الحذف بناءً على الـ ID اللي وصلنا من الفرونت
         cursor.execute("DELETE FROM staff WHERE staff_id = %s", (staff_id,))
         conn.commit()
         
-        # إذا كلشي تمام، بنرجع رسالة نجاح
         return {"status": "success", "message": "تم حذف الموظف من السيستم بنجاح"}
     except Exception as e:
-        # إذا صار أي مشكلة (مثلاً الموظف اله روابط ثانية)، بنعمل رول باك
         conn.rollback()
         return {"status": "error", "message": f"في مشكلة بالحذف: {str(e)}"}
     finally:
@@ -921,7 +910,6 @@ def get_hod_analytics_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        #  شرط الفلترة WHERE c.dept_id = %s
         query = """
             SELECT s.section_id, c.course_code, c.title, s.section_num, s.capacity, s.days, s.start_time, s.end_time,
             (SELECT COUNT(*) FROM vote v WHERE v.section_id = s.section_id) as vote_count
@@ -929,17 +917,14 @@ def get_hod_analytics_service(dept_id):
             JOIN course c ON s.course_id = c.course_id
             WHERE c.dept_id = %s
         """
-        # تمرير dept_id مع الاستعلام
         cursor.execute(query, (dept_id,))
         sections = cursor.fetchall()
         
         reports = []
         for sec in sections:
-            # حساب نسبة الإقبال تجنب القسمة على صفر إذا السعة مش مدخلة صح
             capacity = sec['capacity'] if sec['capacity'] > 0 else 50
             demand_pct = (sec['vote_count'] / capacity) * 100
             
-            #  النصائح 
             advice = "الوضع مستقر."
             status = "success"
             if demand_pct > 90:
@@ -962,7 +947,7 @@ def get_hod_analytics_service(dept_id):
 
 
 
-# ---   التقرير النهائيم ---
+#    التقرير النهائيم 
 def check_time_overlap(days1, start1, end1, days2, start2, end2):
     if not days1 or not days2 or not start1 or not end1 or not start2 or not end2:
         return False
@@ -980,12 +965,11 @@ def check_time_overlap(days1, start1, end1, days2, start2, end2):
     return (s1 < e2) and (s2 < e1)
 
 
-# ---  التقرير النهائي    ---
+#   التقرير النهائي    
 def get_hod_final_report_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. جلب كافة البيانات مع ربط الخطة الدراسية
         query = """
             SELECT c.course_id, c.course_code, c.title,
                    s.section_id, s.section_num, s.days, s.start_time, s.end_time, s.capacity,
@@ -1001,7 +985,6 @@ def get_hod_final_report_service(dept_id):
         cursor.execute(query, (dept_id,))
         all_sections = cursor.fetchall()
 
-        # 2. تجهيز قائمة "الشعب الإجبارية " لاستخدامها في كشف التعارض
         popular_mandatory_sections = [
             sec for sec in all_sections 
             if sec['course_category'] and 'إجباري' in sec['course_category'] 
@@ -1069,7 +1052,6 @@ def get_hod_final_report_service(dept_id):
                     proposed_sections.append(format_section_data(sec, actual_capacity, advice))
                     
                 elif fill_ratio >= 0.5:
-                    # خوارزمية التحجيم المكاني
                     advice = f"إقبال متوسط ({percent_text}%). تُطرح مع تغيير القاعة لأخرى تتسع لـ {vote_count + 5} طالب فقط لتوفير الموارد."
                     proposed_sections.append(format_section_data(sec, actual_capacity, advice))
                     
@@ -1086,7 +1068,6 @@ def get_hod_final_report_service(dept_id):
                                     conflict_found = True
                                     break
                     
-                    # 2. إذا لم يكن هناك تعارض، نشغل خوارزمية وزن المادة والخريجين
                     if not conflict_found:
                         if is_mandatory:
                             if course_year == 4:
@@ -1224,19 +1205,14 @@ def delete_course_service(course_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # 1. حذف الارتباط بالخطط الدراسية (plan_course) 
         cursor.execute("DELETE FROM plan_course WHERE course_id = %s", (course_id,))
         
-        # 2. حذف المادة من جدول المتطلبات (سواء كانت مادة أساسية أو متطلباً لمادة أخرى)
         cursor.execute("DELETE FROM prerequisites WHERE course_id = %s OR prereq_id = %s", (course_id, course_id))
         
-        # 3. حذف أي تصويتات مرتبطة بهذه المادة لضمان تكامل البيانات
         cursor.execute("DELETE FROM vote WHERE course_id = %s", (course_id,))
         
-        # 4. حذف أي شعب دراسية مطروحة لهذه المادة
         cursor.execute("DELETE FROM section WHERE course_id = %s", (course_id,))
 
-        # 5.  يمكن حذف المادة نفسها من جدول المواد (المكتبةد
         cursor.execute("DELETE FROM course WHERE course_id = %s", (course_id,))
         
         conn.commit()
@@ -1266,7 +1242,6 @@ def publish_schedule_service(dept_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # نشر كافة الإشعارات المعلقة الخاصة بهذا القسم
         cursor.execute("""
             UPDATE student_notification 
             SET is_published = 1 
@@ -1295,7 +1270,6 @@ def join_waitlist_service(student_id, section_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. التحقق من سعة الوايت ليست (الحد الأقصى 10)
         cursor.execute("SELECT COUNT(*) as count FROM waitlist WHERE section_id = %s", (section_id,))
         if cursor.fetchone()['count'] >= 10:
             return {"status": "error", "message": "قائمة الانتظار ممتلئة (10 طلاب كحد أقصى)."}

@@ -25,7 +25,7 @@ function App() {
         <Route path="/hod-dashboard/*" element={<HoDDashboard />} />
         
         {/* واجهة مدخل البيانات (التي كانت تسمى DataEntryDashboard) */}
-        {/* ملاحظة: سنبقيها كما هي حالياً لتجنب كسر الروابط القديمة */}
+        {/* */}
         <Route path="/data-entry/*" element={<DataEntryDashboard />} />
         
         {/* بوابة الطلاب */}

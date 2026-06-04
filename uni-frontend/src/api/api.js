@@ -43,7 +43,7 @@ createStudent: (data) => axios.post(`${API_BASE}/students`, data),
 
    //admin
    
-    // جلب قائمة الموظفين
+    //  قائمة الموظفين
 getStaff: (uni_id) => axios.get(`${API_BASE}/admin/staff?uni_id=${uni_id}`),    
     // إضافة موظف جديد (أدمن، رئيس قسم، مدخل بيانات)
     addStaff: (staffData) => axios.post(`${API_BASE}/admin/add-staff`, staffData),
@@ -52,12 +52,9 @@ getStaff: (uni_id) => axios.get(`${API_BASE}/admin/staff?uni_id=${uni_id}`),
     updateStaff: (staffId, data) => axios.put(`${API_BASE}/admin/staff/${staffId}`, data),
     
     // حذف موظف 
-// وظيفة حذف موظف من الداتابيس
 deleteStaff: (staffId) => axios.delete(`${API_BASE}/staff/${staffId}`),
     
-    // جلب قائمة الطلاب لعرضها للأدمن
 getAdminStudents: (uni_id) => axios.get(`${API_BASE}/admin/students?uni_id=${uni_id}`),    
-    // تعديل بيانات طالب (الاسم، الإيميل، الخطة)
     updateStudent: (studentId, data) => axios.put(`${API_BASE}/admin/students/${studentId}`, data),
 
 getDepartments: (uni_id) => axios.get(`${API_BASE}/admin/departments?uni_id=${uni_id}`),

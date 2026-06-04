@@ -104,10 +104,8 @@ const StudentDashboard = () => {
         const allNotifs = res.data;
         setNotifications(allNotifs);
 
-        // فلترة الإشعارات غير المقروءة فقط
         const unread = allNotifs.filter(n => n.is_read === 0);
 
-        // إذا وجدنا إشعارات جديدة، نعرضها فوراً في نافذة منبثقة
         if (unread.length > 0) {
             let htmlContent = `
                 <div style="text-align: right; direction: rtl; font-family: 'Tajawal', sans-serif;">

@@ -103,7 +103,7 @@ const Login = () => {
                         <LogIn size={28} color="#2563eb" />
                     </div>
                     <h2 style={styles.title}>دخول الموظف</h2>
-                    {/*  اسم الجامعة   */}
+                    {/*  اسم الجامعة */}
                     <p style={styles.subtitle}>بوابة تسجيل الموظفين - {selectedUniName}</p>
                 </div>
 

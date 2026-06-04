@@ -8,14 +8,12 @@ const StudentLogin = () => {
     const navigate = useNavigate();
     const [loginData, setLoginData] = useState({ student_id: '', password: '' });
 
-    //  بيانات الجامعة المختارة من شاشة البداية
     const selectedUniId = localStorage.getItem('selected_uni_id');
     const selectedUniName = localStorage.getItem('global_university_name') || 'الجامعة';
 
     const handleLogin = async (e) => {
         e.preventDefault();
 
-        // التأكد من أن الطالب اختار جامعة من الشاشة الرئيسية
         if (!selectedUniId) {
             return Swal.fire({
                 icon: 'warning',
@@ -25,7 +23,6 @@ const StudentLogin = () => {
             });
         }
 
-        // إضافة رقم الجامعة للبيانات المرسلة للباك إند
         const payload = {
             ...loginData,
             uni_id: selectedUniId

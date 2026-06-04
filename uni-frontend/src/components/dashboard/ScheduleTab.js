@@ -53,8 +53,8 @@ const ScheduleTab = ({ catalog, styles }) => {
 
     const fetchSections = async () => {
         try {
-            const deptId = localStorage.getItem('dept_id'); // جلب رقم قسم الموظف
-            const res = await api.getStaffSchedule(deptId); // إرساله للسيرفر
+            const deptId = localStorage.getItem('dept_id'); //  
+            const res = await api.getStaffSchedule(deptId); //  to server with dept_id as query param
             setSections(res.data);
         } catch (err) { console.error("Error fetching sections", err); }
     };
@@ -80,7 +80,6 @@ const ScheduleTab = ({ catalog, styles }) => {
     };
 
     const handleFinalApproval = async () => {
-        // 1. جلب رقم القسم من التخزين 
         const deptId = localStorage.getItem('dept_id');
 
         const result = await Swal.fire({
@@ -95,7 +94,6 @@ const ScheduleTab = ({ catalog, styles }) => {
 
         if (result.isConfirmed) {
             try {
-                // 2. تمرير رقم القسم داخل الـ API
                 const res = await api.publishSchedule({ dept_id: deptId }); 
                 
                 if (res.data.status === 'success') {
@@ -275,7 +273,7 @@ const ScheduleTab = ({ catalog, styles }) => {
                         <input placeholder="أدخل اسم القاعة (اختياري)" style={styles.inputField} value={newSection.room_id} onChange={e => setNewSection({...newSection, room_id: e.target.value})} />
                     </div>
 
-                    {/* الكود الجديد: حقل سعة الشعبة */}
+                    {/*  سعة الشعبة */}
                     <div style={{display:'flex', flexDirection:'column'}}>
                         <label style={styles.label}>سعة الشعبة (عدد المقاعد):</label>
                         <input 

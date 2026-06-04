@@ -8,7 +8,15 @@ import Swal from 'sweetalert2';
 
 const AdminDashboard = () => {
     const [view, setView] = useState('depts'); 
+    
+    // States for Departments Hierarchy
+    const [activeUni, setActiveUni] = useState(null); 
+    const [activeFac, setActiveFac] = useState(null); 
     const [selectedDept, setSelectedDept] = useState(null); 
+    
+    // States for Students Hierarchy
+    const [activeStudentUni, setActiveStudentUni] = useState(null);
+
     const [departments, setDepartments] = useState([]);
     const [allStaff, setAllStaff] = useState([]);
     const [students, setStudents] = useState([]);
@@ -32,23 +40,16 @@ const AdminDashboard = () => {
     const [studentForm, setStudentForm] = useState({ student_id: '', name: '', email: '', password: '' });
 
     useEffect(() => {
-        const selectedUniName = localStorage.getItem('global_university_name');
-        setUniName(selectedUniName || 'الجامعة');
+        setUniName('النظام المركزي');
         fetchData();
     }, []);
 
     const fetchData = async () => {
-        const uniId = localStorage.getItem('selected_uni_id');
-        if (!uniId) {
-            Swal.fire('تنبيه', 'يرجى اختيار الجامعة من الصفحة الرئيسية أولاً', 'warning');
-            return;
-        }
-
         try {
             const [deptRes, staffRes, studentRes, structRes] = await Promise.all([
-                api.getDepartments(uniId),
-                api.getStaff(uniId),
-                api.getAdminStudents(uniId),
+                api.getDepartments(),
+                api.getStaff(),
+                api.getAdminStudents(),
                 api.getUniversities()
             ]);
             
@@ -73,11 +74,10 @@ const AdminDashboard = () => {
     const handleSaveStaff = async (e) => {
         e.preventDefault();
         try {
-            const uniId = localStorage.getItem('selected_uni_id');
             const data = { 
                 ...staffForm, 
                 dept_id: selectedDept.dept_id,
-                uni_id: uniId 
+                uni_id: activeUni ? activeUni.id : null 
             };
             
             let res = editingStaffId 
@@ -177,28 +177,73 @@ const AdminDashboard = () => {
         }
     };
 
+    const isSearching = searchTerm.trim().length > 0;
+    const displayedStudents = isSearching 
+        ? students.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || s.student_id?.includes(searchTerm))
+        : (activeStudentUni ? students.filter(s => s.uni_id == activeStudentUni.id) : []);
+
     return (
         <div style={styles.container}>
             <div style={styles.sidebar}>
-                <div style={styles.logoSection}><Settings size={28}/> <span>لوحة إدارة {uniName}</span></div>
-                <button onClick={() => {setView('depts'); setSelectedDept(null);}} style={view === 'depts' ? styles.navActive : styles.navBtn}><School size={20}/> الأقسام والكادر</button>
-                <button onClick={() => setView('students')} style={view === 'students' ? styles.navActive : styles.navBtn}><Users size={20}/> إدارة الطلاب</button>
+                <div style={styles.logoSection}><Settings size={28}/> <span>إدارة {uniName}</span></div>
+                {/* Reset states on sidebar click */}
+                <button onClick={() => {setView('depts'); setActiveUni(null); setActiveFac(null); setSelectedDept(null);}} style={view === 'depts' ? styles.navActive : styles.navBtn}><School size={20}/> الأقسام والكادر</button>
+                <button onClick={() => {setView('students'); setActiveStudentUni(null); setSearchTerm('');}} style={view === 'students' ? styles.navActive : styles.navBtn}><Users size={20}/> إدارة الطلاب</button>
                 <button onClick={() => setView('structure')} style={view === 'structure' ? styles.navActive : styles.navBtn}><Building2 size={20}/> الهيكل الأكاديمي</button>
             </div>
 
             <div style={styles.main}>
-                {view === 'depts' && !selectedDept && (
+                
+                {/*-*/}
+                {view === 'depts' && !activeUni && !selectedDept && (
                     <div style={styles.content}>
-                        <h2 style={styles.pageTitle}>الأقسام الأكاديمية - {uniName}</h2>
+                        <h2 style={styles.pageTitle}>الجامعات المسجلة في النظام</h2>
                         <div style={styles.deptGrid}>
-                            {departments.map(dept => (
-                                <div key={dept.dept_id} style={styles.deptCard} onClick={() => setSelectedDept(dept)}>
-                                    <div style={styles.deptIcon}><School size={40} color="#2563eb"/></div>
-                                    <h3 style={styles.deptName}>{dept.dept_name}</h3>
-                                    <p style={styles.deptSub}>إدارة رئيس القسم والمدخلين</p>
+                            {structureData.map(uni => (
+                                <div key={uni.id} style={styles.deptCard} onClick={() => setActiveUni(uni)}>
+                                    <div style={styles.deptIcon}><Building2 size={40} color="#2563eb"/></div>
+                                    <h3 style={styles.deptName}>{uni.name}</h3>
+                                    <p style={styles.deptSub}>اضغط لاستعراض الكليات</p>
                                     <div style={styles.deptArrow}><ChevronLeft size={20}/></div>
                                 </div>
                             ))}
+                            {structureData.length === 0 && <p style={styles.empty}>لا يوجد جامعات حالياً.</p>}
+                        </div>
+                    </div>
+                )}
+
+                {view === 'depts' && activeUni && !activeFac && !selectedDept && (
+                    <div style={styles.content}>
+                        <button onClick={() => setActiveUni(null)} style={styles.backBtn}><ChevronLeft size={18}/> العودة للجامعات</button>
+                        <h2 style={styles.pageTitle}>كليات {activeUni.name}</h2>
+                        <div style={styles.deptGrid}>
+                            {activeUni.faculties?.map(fac => (
+                                <div key={fac.id} style={styles.deptCard} onClick={() => setActiveFac(fac)}>
+                                    <div style={styles.deptIcon}><Building2 size={40} color="#10b981"/></div>
+                                    <h3 style={styles.deptName}>{fac.name}</h3>
+                                    <p style={styles.deptSub}>اضغط لاستعراض الأقسام</p>
+                                    <div style={styles.deptArrow}><ChevronLeft size={20}/></div>
+                                </div>
+                            ))}
+                            {(!activeUni.faculties || activeUni.faculties.length === 0) && <p style={styles.empty}>لا يوجد كليات في هذه الجامعة.</p>}
+                        </div>
+                    </div>
+                )}
+
+                {view === 'depts' && activeFac && !selectedDept && (
+                    <div style={styles.content}>
+                        <button onClick={() => setActiveFac(null)} style={styles.backBtn}><ChevronLeft size={18}/> العودة للكليات</button>
+                        <h2 style={styles.pageTitle}>أقسام {activeFac.name}</h2>
+                        <div style={styles.deptGrid}>
+                            {activeFac.departments?.map(dept => (
+                                <div key={dept.id} style={styles.deptCard} onClick={() => setSelectedDept({ dept_id: dept.id, dept_name: dept.name })}>
+                                    <div style={styles.deptIcon}><School size={40} color="#f59e0b"/></div>
+                                    <h3 style={styles.deptName}>{dept.name}</h3>
+                                    <p style={styles.deptSub}>إدارة الكادر ورئيس القسم</p>
+                                    <div style={styles.deptArrow}><ChevronLeft size={20}/></div>
+                                </div>
+                            ))}
+                            {(!activeFac.departments || activeFac.departments.length === 0) && <p style={styles.empty}>لا يوجد أقسام في هذه الكلية.</p>}
                         </div>
                     </div>
                 )}
@@ -207,7 +252,6 @@ const AdminDashboard = () => {
                     <div style={styles.content}>
                         <button onClick={() => setSelectedDept(null)} style={styles.backBtn}><ChevronLeft size={18}/> العودة للأقسام</button>
                         <h2 style={styles.pageTitle}>إدارة قسم: {selectedDept.dept_name}</h2>
-
 
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
@@ -229,7 +273,6 @@ const AdminDashboard = () => {
                             ))}
                             {getDeptStaff('hod').length === 0 && <p style={styles.empty}>لا يوجد رئيس معين لهذا القسم حالياً.</p>}
                         </div>
-
 
                         <div style={styles.sectionBox}>
                             <div style={styles.sectionHeader}>
@@ -261,29 +304,60 @@ const AdminDashboard = () => {
                     </div>
                 )}
 
+                {/*-*/}
                 {view === 'students' && (
                     <div style={styles.content}>
                         <div style={styles.headerRow}>
-                            <h2 style={styles.pageTitle}>إدارة شؤون طلاب {uniName}</h2>
-                            <div style={styles.searchBar}><Search size={18} color="#94a3b8"/> <input style={styles.searchInput} placeholder="ابحث باسم الطالب أو رقمه..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                            <h2 style={styles.pageTitle}>إدارة شؤون الطلاب</h2>
+                            <div style={styles.searchBar}>
+                                <Search size={18} color="#94a3b8"/> 
+                                <input style={styles.searchInput} placeholder="ابحث بكل الجامعات بالاسم أو الرقم..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            </div>
                         </div>
-                        <table style={styles.table}>
-                            <thead><tr><th>الرقم الجامعي</th><th>الاسم</th><th>الإيميل</th><th>الإجراء</th></tr></thead>
-                            <tbody>
-                                {students.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || s.student_id?.includes(searchTerm)).map(s => (
-                                    <tr key={s.student_id}>
-                                        <td style={styles.td}>{s.student_id}</td>
-                                        <td style={styles.td}>{s.name}</td>
-                                        <td style={styles.td}>{s.email}</td>
-                                        <td style={styles.td}><button style={styles.pwdBtn} onClick={() => { setStudentForm(s); setShowStudentModal(true); }}><KeyRound size={14}/> تعديل / باسوورد</button></td>
-                                    </tr>
+
+                        {/* */}
+                        {!isSearching && !activeStudentUni && (
+                            <div style={styles.deptGrid}>
+                                {structureData.map(uni => (
+                                    <div key={uni.id} style={styles.deptCard} onClick={() => setActiveStudentUni(uni)}>
+                                        <div style={styles.deptIcon}><Building2 size={40} color="#2563eb"/></div>
+                                        <h3 style={styles.deptName}>{uni.name}</h3>
+                                        <p style={styles.deptSub}>استعراض طلاب هذه الجامعة</p>
+                                        <div style={styles.deptArrow}><ChevronLeft size={20}/></div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
-                        {students.length === 0 && <p style={styles.empty}>لا يوجد طلاب مسجلين في هذه الجامعة بعد.</p>}
+                            </div>
+                        )}
+
+                        {/* */}
+                        {(isSearching || activeStudentUni) && (
+                            <>
+                                {!isSearching && activeStudentUni && (
+                                    <button onClick={() => setActiveStudentUni(null)} style={styles.backBtn}><ChevronLeft size={18}/> العودة للجامعات</button>
+                                )}
+                                
+                                <table style={styles.table}>
+                                    <thead><tr><th>الرقم الجامعي</th><th>الاسم</th><th>الإيميل</th><th>الإجراء</th></tr></thead>
+                                    <tbody>
+                                        {displayedStudents.map(s => (
+                                            <tr key={s.student_id}>
+                                                <td style={styles.td}>{s.student_id}</td>
+                                                <td style={styles.td}>{s.name}</td>
+                                                <td style={styles.td}>{s.email}</td>
+                                                <td style={styles.td}>
+                                                    <button style={styles.pwdBtn} onClick={() => { setStudentForm(s); setShowStudentModal(true); }}><KeyRound size={14}/> تعديل / باسوورد</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {displayedStudents.length === 0 && <p style={styles.empty}>لا يوجد طلاب مطابقين للبحث أو مسجلين في هذه الجامعة.</p>}
+                            </>
+                        )}
                     </div>
                 )}
 
+                {}
                 {view === 'structure' && (
                     <div style={styles.content}>
                         <div style={styles.headerRow}>
@@ -349,7 +423,7 @@ const AdminDashboard = () => {
                                 <input style={styles.input} placeholder="الاسم الكامل" value={staffForm.name} onChange={e => setStaffForm({...staffForm, name: e.target.value})} required />
                                 <input style={styles.input} placeholder="الإيميل" type="email" value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} required />
                                 <input style={styles.input} placeholder={editingStaffId ? "كلمة مرور جديدة (اختياري)" : "كلمة المرور"} type="password" onChange={e => setStaffForm({...staffForm, password: e.target.value})} required={!editingStaffId} />
-                                <button type="submit" style={styles.saveBtn}>حفظ البيانات في {uniName}</button>
+                                <button type="submit" style={styles.saveBtn}>حفظ البيانات</button>
                             </form>
                         </div>
                     </div>
@@ -372,7 +446,7 @@ const AdminDashboard = () => {
                     </div>
                 )}
 
-                {/* Structure Modal */}
+                {/* Structure  */}
                 {showStructModal && (
                     <div style={styles.overlay}>
                         <div style={styles.modal}>
