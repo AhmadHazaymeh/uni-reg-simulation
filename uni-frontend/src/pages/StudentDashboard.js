@@ -17,6 +17,8 @@ const StudentDashboard = () => {
     const [userVotes, setUserVotes] = useState([]); 
     const [notifications, setNotifications] = useState([]);
     const [waitlist, setWaitlist] = useState([]);
+    const [uniName, setUniName] = useState('');
+    const [deptName, setDeptName] = useState('');
   
     const studentUser = JSON.parse(localStorage.getItem('student_user') || '{}');
 
@@ -32,6 +34,10 @@ const StudentDashboard = () => {
     const semesterNames = { 1: 'الفصل الأول', 2: 'الفصل الثاني', 3: 'الفصل الصيفي' };
 
     useEffect(() => {
+        const storedUniName = localStorage.getItem('global_university_name') || 'الجامعة غير محددة';
+        const storedDeptName = localStorage.getItem('selected_dept_name') || 'القسم غير محدد';
+        setUniName(storedUniName);
+        setDeptName(storedDeptName);
         if (!studentUser.id) {
             navigate('/');
             return;
@@ -222,7 +228,7 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
             return;
         }
 
-        // --- التعديل الجديد: منع التصويت إذا كانت الشعبة ممتلئة ---
+        //    منع التصويت إذا كانت الشعبة ممتلئة ---
         if (capacity > 0 && currentVotes >= capacity) {
             Swal.fire({
                 icon: 'warning',
@@ -321,8 +327,8 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                 </div>
 
                 <div style={styles.universityTitle}>
-                    جامعة العلوم والتكنولوجيا الأردنية - قسم هندسة البرمجيات
-                 </div>
+                    {uniName} - {deptName.includes('قسم') ? deptName : `قسم ${deptName}`}
+                </div>
 
                 <div style={styles.navActions}>
                     <div style={styles.navActions}>
@@ -445,7 +451,7 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
         const isWaitlisted = waitlist.includes(section.section_id);
         
         return (
-            // التعديل هنا: تحويل الاتجاه إلى أفقي (row) مع توسيط العناصر
+            // ا تحويل الاتجاه إلى أفقي (row) مع توسيط العناصر
             <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                 <button
                     disabled={!isVoted && isFull} 
@@ -454,7 +460,7 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                         backgroundColor: isVoted ? '#ef4444' : (isFull ? '#94a3b8' : '#6366f1'), 
                         cursor: (!isVoted && isFull) ? 'not-allowed' : 'pointer',
                         opacity: (!isVoted && isFull) ? 0.6 : 1,
-                        whiteSpace: 'nowrap' // لمنع تكسر النص
+                        whiteSpace: 'nowrap' 
                     }}
                     onClick={() => handleVoteToggle(section.course_id, section.section_id, course.title, section.section_num, section.current_votes, section.capacity)}
                 >
@@ -470,7 +476,7 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                             backgroundColor: isWaitlisted ? '#ef4444' : '#f59e0b', // أحمر للانسحاب، برتقالي للانضمام
                             fontSize: '12px',
                             padding: '6px 10px',
-                            whiteSpace: 'nowrap' // لمنع تكسر النص
+                            whiteSpace: 'nowrap' 
                         }}
                         onClick={() => handleWaitlistToggle(section.section_id, isWaitlisted)}
                     >

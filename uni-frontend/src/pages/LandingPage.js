@@ -11,7 +11,6 @@ const LandingPage = () => {
     const [selectedUniId, setSelectedUniId] = useState('');
     const [selectedFacId, setSelectedFacId] = useState('');
     const [selectedDeptId, setSelectedDeptId] = useState('');
-
    
     useEffect(() => {
         const fetchUnis = async () => {
@@ -44,7 +43,7 @@ const LandingPage = () => {
         }
     };
 
-    const handleDeptChange = (e) => {
+   const handleDeptChange = (e) => {
         const deptId = e.target.value;
         setSelectedDeptId(deptId);
         
@@ -52,6 +51,9 @@ const LandingPage = () => {
             const dept = selectedFac.departments.find(d => d.id.toString() === deptId.toString());
             localStorage.setItem('global_faculty_name', selectedFac.name);
             localStorage.setItem('target_dept_id', dept.id); 
+            
+            localStorage.setItem('selected_dept_id', dept.id); 
+            localStorage.setItem('selected_dept_name', dept.name); 
         }
     };
 
