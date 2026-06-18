@@ -157,22 +157,27 @@ const LandingPage = () => {
 const styles = {
     container: {
         minHeight: '100vh',
-        backgroundColor: '#f1f5f9',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0284c7 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px',
-        fontFamily: 'Tajawal, sans-serif'
+        fontFamily: 'Tajawal, sans-serif',
+        position: 'relative',
+        overflow: 'hidden'
     },
     mainCard: {
-        backgroundColor: '#ffffff',
+        background: 'rgba(255, 255, 255, 0.85)', 
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)', 
         width: '100%',
         maxWidth: '650px',
         borderRadius: '24px',
-        boxShadow: '0 20px 40px -15px rgba(0,0,0,0.1)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
         padding: '40px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        border: '1px solid rgba(255, 255, 255, 0.6)' 
     },
     header: {
         textAlign: 'center',
@@ -181,23 +186,25 @@ const styles = {
     logoCircle: {
         width: '80px',
         height: '80px',
-        backgroundColor: '#eff6ff',
+        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        margin: '0 auto 20px auto'
+        margin: '0 auto 20px auto',
+        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.1)'
     },
     title: {
-        fontSize: '26px',
+        fontSize: '28px',
         color: '#0f172a',
         margin: '0 0 10px 0',
-        fontWeight: 'bold'
+        fontWeight: '900'
     },
     subtitle: {
         fontSize: '15px',
-        color: '#64748b',
-        margin: 0
+        color: '#475569',
+        margin: 0,
+        fontWeight: '500'
     },
     formContainer: {
         display: 'flex',
@@ -213,7 +220,7 @@ const styles = {
     label: {
         fontSize: '14px',
         fontWeight: 'bold',
-        color: '#475569',
+        color: '#334155',
         display: 'flex',
         alignItems: 'center',
         gap: '6px'
@@ -222,13 +229,15 @@ const styles = {
         width: '100%',
         padding: '14px 16px',
         borderRadius: '12px',
-        border: '1px solid #cbd5e1',
+        border: '1px solid rgba(255, 255, 255, 0.8)',
         fontSize: '15px',
         color: '#1e293b',
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)', 
+        backdropFilter: 'blur(10px)',
         outline: 'none',
         cursor: 'pointer',
-        transition: 'border-color 0.2s',
+        transition: 'all 0.3s ease',
+        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
     },
     portalsContainer: {
         marginTop: '35px',
@@ -238,12 +247,12 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         textAlign: 'center',
-        color: '#94a3b8',
+        color: '#64748b',
         fontSize: '13px',
         fontWeight: 'bold',
         marginBottom: '20px',
-        '::before': { content: '""', flex: 1, borderBottom: '1px solid #e2e8f0', marginRight: '15px' },
-        '::after': { content: '""', flex: 1, borderBottom: '1px solid #e2e8f0', marginLeft: '15px' }
+        '::before': { content: '""', flex: 1, borderBottom: '1px solid rgba(0,0,0,0.1)', marginRight: '15px' },
+        '::after': { content: '""', flex: 1, borderBottom: '1px solid rgba(0,0,0,0.1)', marginLeft: '15px' }
     },
     portalCards: {
         display: 'flex',
@@ -256,11 +265,14 @@ const styles = {
         justifyContent: 'space-between',
         padding: '20px',
         borderRadius: '16px',
-        border: '2px solid transparent',
+        border: '1px solid rgba(255, 255, 255, 0.8)',
         cursor: 'pointer',
         textAlign: 'right',
-        transition: '0.2s ease',
-        textDecoration: 'none'
+        transition: 'all 0.3s ease',
+        textDecoration: 'none',
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
     },
     portalTitle: {
         fontSize: '17px',
@@ -273,8 +285,9 @@ const styles = {
     },
     footer: {
         marginTop: '30px',
-        color: '#94a3b8',
-        fontSize: '14px'
+        color: 'rgba(255, 255, 255, 0.7)', 
+        fontSize: '14px',
+        fontWeight: '500'
     }
 };
 

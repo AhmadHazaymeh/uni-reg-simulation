@@ -153,7 +153,7 @@ const Login = () => {
                 </form>
 
                 <div style={styles.footer}>
-                    <p>© 2025 نظام محاكاة التسجيل الجامعي </p>
+                    <p>جميع الحقوق محفوظة © 2026 - مشروع التخرج</p>
                 </div>
             </div>
         </div>
@@ -166,60 +166,63 @@ const styles = {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc', 
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0284c7 100%)', 
         direction: 'rtl',
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontFamily: "'Tajawal', Tahoma, Geneva, Verdana, sans-serif",
         padding: '20px'
     },
     loginCard: {
         width: '100%',
-        maxWidth: '450px', 
-        backgroundColor: '#ffffff',
+        maxWidth: '420px', 
+        background: 'rgba(255, 255, 255, 0.85)', 
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         padding: '40px',
         borderRadius: '24px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
-        border: '1px solid #f1f5f9',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        border: '1px solid rgba(255, 255, 255, 0.6)',
         textAlign: 'right'
     },
     header: {
         textAlign: 'center',
-        marginBottom: '30px'
+        marginBottom: '35px'
     },
     iconCircle: {
-        width: '60px',
-        height: '60px',
-        backgroundColor: '#eff6ff',
-        borderRadius: '18px',
+        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+        width: '70px',
+        height: '70px',
+        borderRadius: '50%',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         margin: '0 auto 15px',
-        transform: 'rotate(-5deg)'
+        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.1)'
     },
     title: {
-        fontSize: '22px',
+        fontSize: '26px',
         color: '#0f172a',
-        fontWeight: '700',
+        fontWeight: '900',
         marginBottom: '8px'
     },
     subtitle: {
-        fontSize: '13px',
-        color: '#64748b'
+        fontSize: '14px',
+        color: '#475569',
+        fontWeight: '500'
     },
     form: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '18px'
+        gap: '20px'
     },
     inputGroup: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px'
+        gap: '8px'
     },
     label: {
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#475569',
+        fontSize: '14px',
+        fontWeight: 'bold',
+        color: '#334155',
         marginRight: '4px'
     },
     inputWrapper: {
@@ -229,18 +232,23 @@ const styles = {
     },
     input: {
         width: '100%',
-        padding: '12px 42px 12px 42px',
+        padding: '14px 42px 14px 14px',
         borderRadius: '12px',
-        border: '1px solid #e2e8f0',
-        fontSize: '14px',
+        border: '1px solid rgba(255, 255, 255, 0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)', 
+        backdropFilter: 'blur(10px)',
+        fontSize: '15px',
         outline: 'none',
-        transition: 'all 0.2s ease-in-out',
-        backgroundColor: '#fff',
-        textAlign: 'right'
+        transition: 'all 0.3s ease',
+        color: '#1e293b',
+        textAlign: 'right',
+        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
+        boxSizing: 'border-box'
     },
     fieldIcon: {
         position: 'absolute',
-        right: '14px'
+        right: '14px',
+        zIndex: 2
     },
     eyeBtn: {
         position: 'absolute',
@@ -249,26 +257,28 @@ const styles = {
         border: 'none',
         cursor: 'pointer',
         display: 'flex',
-        alignItems: 'center'
+        alignItems: 'center',
+        zIndex: 2
     },
     submitBtn: {
-        marginTop: '10px',
-        padding: '14px',
-        backgroundColor: '#2563eb',
+        marginTop: '15px',
+        padding: '16px',
+        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
         color: 'white',
         border: 'none',
         borderRadius: '12px',
-        fontSize: '15px',
-        fontWeight: '700',
+        fontSize: '16px',
+        fontWeight: 'bold',
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+        transition: 'all 0.3s ease',
+        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.4)'
     },
     footer: {
         marginTop: '25px',
         textAlign: 'center',
-        fontSize: '11px',
-        color: '#94a3b8'
+        fontSize: '13px',
+        color: '#475569',
+        fontWeight: '500'
     }
 };
 
