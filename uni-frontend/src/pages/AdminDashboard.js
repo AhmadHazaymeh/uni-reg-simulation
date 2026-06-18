@@ -369,7 +369,7 @@ const AdminDashboard = () => {
                         {structureData.map(uni => (
                             <div key={uni.id} style={{...styles.sectionBox, marginBottom: '20px'}}>
                                 <div style={{...styles.sectionHeader, backgroundColor: '#f8fafc', padding: '15px', borderRadius: '10px'}}>
-                                    <h3 style={styles.sectionTitle}><School color="#2563eb"/> {uni.name} ({uni.id})</h3>
+                                    <h3 style={styles.sectionTitle}><School color="#2563eb"/> {uni.name} </h3>
                                     <div style={styles.actions}>
                                         <button style={styles.addMiniBtn} onClick={() => { setStructForm({type: 'fac', id: null, name: '', parent_id: uni.id}); setShowStructModal(true); }}><PlusCircle size={14}/> كلية</button>
                                         <button style={styles.editIconBtn} onClick={() => { const ed = uni.email_domain || ''; const ip = uni.id_pattern || ''; setStructForm({type: 'uni', id: uni.id, name: uni.name, email_domain: ed, id_pattern: ip, parent_id: null}); setShowStructModal(true); }}><Edit size={14}/></button>

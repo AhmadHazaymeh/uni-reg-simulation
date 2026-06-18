@@ -626,29 +626,54 @@ def create_student_service(data):   # sign up
 
 def submit_student_vote_service(data):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    # تأكد من إضافة dictionary=True لتسهيل قراءة البيانات
+    cursor = conn.cursor(dictionary=True) 
     try:
-        cursor.execute("SELECT * FROM vote WHERE student_id = %s AND course_id = %s", (data['student_id'], data['course_id']))
+        student_id = data['student_id']
+        course_id = data['course_id']
+        new_section_id = data.get('section_id')
+
+        # 1. التحقق من التصويت لنفس المادة مسبقاً
+        cursor.execute("SELECT * FROM vote WHERE student_id = %s AND course_id = %s", (student_id, course_id))
         if cursor.fetchone():
             return {"status": "error", "message": "لقد قمت بالتصويت لهذه المادة مسبقاً"}
 
-        query = "INSERT INTO vote (student_id, course_id, section_id) VALUES (%s, %s, %s)"
-        cursor.execute(query, (data['student_id'], data['course_id'], data.get('section_id')))
+        # 2. التحقق من التعارض الزمني مع شعب مصوت عليها سابقاً
+        # نجلب بيانات الشعبة الجديدة التي يحاول الطالب التصويت لها
+        cursor.execute("SELECT days, start_time, end_time FROM section WHERE section_id = %s", (new_section_id,))
+        new_sec = cursor.fetchone()
+
+        if new_sec:
+            # استعلام للبحث عن أي شعبة مسجلة تتقاطع أوقاتها مع الشعبة الجديدة
+            query_conflict = """
+                SELECT s.section_num, c.title, s.days
+                FROM vote v
+                JOIN section s ON v.section_id = s.section_id
+                JOIN course c ON s.course_id = c.course_id
+                WHERE v.student_id = %s 
+                AND s.start_time < %s 
+                AND s.end_time > %s
+            """
+            cursor.execute(query_conflict, (student_id, new_sec['end_time'], new_sec['start_time']))
+            potential_conflicts = cursor.fetchall()
+
+            # فحص تقاطع الأيام في حال وجود تعارض في الوقت
+            for conflict in potential_conflicts:
+                if any(day in conflict['days'] for day in new_sec['days']):
+                    return {
+                        "status": "error", 
+                        "message": f"أنت مصوت لشعبة {conflict['section_num']} بنفس الوقت في مادة {conflict['title']}"
+                    }
+
+        # 3. إدخال التصويت في حال عدم وجود تعارض
+        query_insert = "INSERT INTO vote (student_id, course_id, section_id) VALUES (%s, %s, %s)"
+        cursor.execute(query_insert, (student_id, course_id, new_section_id))
         conn.commit()
         return {"status": "success", "message": "تم تسجيل صوتك بنجاح"}
+
     except Exception as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
-    finally:
-        cursor.close()
-        conn.close()
-
-def get_student_votes_service(student_id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT section_id FROM vote WHERE student_id = %s", (student_id,))
-        return cursor.fetchall()
     finally:
         cursor.close()
         conn.close()

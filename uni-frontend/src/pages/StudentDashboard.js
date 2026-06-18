@@ -19,6 +19,7 @@ const StudentDashboard = () => {
     const [waitlist, setWaitlist] = useState([]);
     const [uniName, setUniName] = useState('');
     const [deptName, setDeptName] = useState('');
+    const [showNotifMenu, setShowNotifMenu] = useState(false);
   
     const studentUser = JSON.parse(localStorage.getItem('student_user') || '{}');
 
@@ -334,22 +335,69 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
                     <div style={styles.navActions}>
                     
                     {/* أيقونة الإشعارات */}
-                    <div style={{ position: 'relative', cursor: 'pointer', marginLeft: '15px' }} onClick={fetchNotifications}>
-                        <div style={{ backgroundColor: '#f1f5f9', padding: '8px', borderRadius: '10px' }}>
-                            <CalendarIcon size={20} color="#64748b" />
-                        </div>
-                        {notifications.filter(n => n.is_read === 0).length > 0 && (
-                            <span style={{
-                                position: 'absolute', top: '-5px', right: '-5px',
-                                backgroundColor: '#ef4444', color: 'white', fontSize: '10px',
-                                width: '18px', height: '18px', borderRadius: '50%',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontWeight: 'bold', border: '2px solid white'
-                            }}>
-                                {notifications.filter(n => n.is_read === 0).length}
-                            </span>
-                        )}
+                    {/* أيقونة الإشعارات والقائمة المنسدلة */}
+<div style={{ position: 'relative', cursor: 'pointer', marginLeft: '15px' }}>
+    <div 
+        style={{ backgroundColor: '#f1f5f9', padding: '8px', borderRadius: '10px' }}
+        onClick={() => setShowNotifMenu(!showNotifMenu)}
+    >
+        <CalendarIcon size={20} color="#64748b" />
+    </div>
+    
+    {/* العداد الأحمر للإشعارات غير المقروءة */}
+    {notifications.filter(n => n.is_read === 0).length > 0 && (
+        <span style={{
+            position: 'absolute', top: '-5px', right: '-5px',
+            backgroundColor: '#ef4444', color: 'white', fontSize: '10px',
+            width: '18px', height: '18px', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 'bold', border: '2px solid white'
+        }}>
+            {notifications.filter(n => n.is_read === 0).length}
+        </span>
+    )}
+
+    {/* القائمة المنسدلة لسجل الإشعارات */}
+    {showNotifMenu && (
+        <div style={{
+            position: 'absolute',
+            top: '45px',
+            left: '0', 
+            width: '320px',
+            backgroundColor: '#fff',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            zIndex: 1000,
+            maxHeight: '350px',
+            overflowY: 'auto',
+            padding: '15px',
+            cursor: 'default'
+        }}>
+            <h4 style={{ margin: '0 0 10px 0', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9', fontSize: '15px', color: '#1e293b', fontWeight: 'bold' }}>
+                سجل الإشعارات
+            </h4>
+            {notifications.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '20px 0' }}>لا توجد إشعارات حتى الآن.</p>
+            ) : (
+                notifications.map((n, idx) => (
+                    <div key={idx} style={{
+                        padding: '12px',
+                        marginBottom: '8px',
+                        backgroundColor: n.is_read === 0 ? '#eff6ff' : '#f8fafc',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        color: '#334155',
+                        lineHeight: '1.5',
+                        borderRight: n.is_read === 0 ? '4px solid #2563eb' : '4px solid #cbd5e1'
+                    }}>
+                        {n.message}
                     </div>
+                ))
+            )}
+        </div>
+    )}
+</div>
 
                    
                 </div>
@@ -509,7 +557,15 @@ const handleVoteToggle = async (courseId, sectionId, courseName, sectionNum, cur
 const styles = {
     container: { padding: '40px 5%', backgroundColor: '#f1f5f9', minHeight: '100vh', fontFamily: 'Tajawal, sans-serif', direction: 'rtl' },
     loading: { textAlign: 'center', marginTop: '100px', fontSize: '20px', color: '#6366f1', fontWeight: 'bold' },
-    navbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '15px 30px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' },
+    navbar: { display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: '#fff', 
+        padding: '15px 30px', 
+        borderRadius: '20px', 
+        boxShadow: '0 4px 15px rgba(0,0,0,0.05)', 
+        marginBottom: '30px' },
+        
     universityTitle: {
     fontSize: '16px',
     fontWeight: 'bold',
@@ -524,7 +580,10 @@ const styles = {
     margin: '0 20px',
     padding: '0 15px'
 },
-    welcomeSection: { display: 'flex', alignItems: 'center', gap: '15px' },
+    welcomeSection: { 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '15px' },
 
     avatar: { backgroundColor: '#eef2ff', padding: '12px', borderRadius: '15px' },
 
