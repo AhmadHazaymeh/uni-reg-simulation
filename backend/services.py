@@ -679,6 +679,24 @@ def submit_student_vote_service(data):
         conn.close()
 
 
+
+def get_student_votes_service(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT section_id, course_id FROM vote WHERE student_id = %s", (student_id,))
+        return cursor.fetchall()
+    except Exception as e:
+        print(f"Database Error: {str(e)}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
+
 def remove_vote_service(student_id, section_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
