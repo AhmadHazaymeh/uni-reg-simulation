@@ -3,13 +3,13 @@ import axios from 'axios';
 const API_BASE = "http://127.0.0.1:5000/api";
 
 export const api = {
-    //  Plans
+    //Plans
     getPlans: (deptId) => axios.get(`${API_BASE}/plans`, { params: { dept_id: deptId } }),    createPlan: (planData) => axios.post(`${API_BASE}/plans`, planData),
     deletePlan: (planId) => axios.delete(`${API_BASE}/plans/${planId}`),
     deletePlanCoursePrereq: (planId, courseId, data) => axios.post(`${API_BASE}/plans/${planId}/courses/${courseId}/prereqs/delete`, data),
         
 
-    // Catalog
+    //Catalog
    getCatalog: (deptId) => axios.get(`${API_BASE}/catalog/courses`, { params: { dept_id: deptId } }),
    addCourse: (courseData) => axios.post(`${API_BASE}/add-course`, courseData), 
    updateCourse: (id, data) => axios.put(`${API_BASE}/courses/${id}`, data), 

@@ -36,7 +36,7 @@ const StudentDashboard = () => {
 
     useEffect(() => {
         const storedUniName = localStorage.getItem('global_university_name') || 'الجامعة غير محددة';
-        const storedDeptName = localStorage.getItem('selected_dept_name') || 'القسم غير محدد';
+        const storedDeptName = studentUser.dept_name || 'القسم غير محدد';
         setUniName(storedUniName);
         setDeptName(storedDeptName);
         if (!studentUser.id) {

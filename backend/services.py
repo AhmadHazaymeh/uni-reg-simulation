@@ -89,7 +89,12 @@ def login_student_service(student_id, password, uni_id): # : تمرير uni_id
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        query = "SELECT student_id, name, email, plan_id, dept_id, uni_id FROM student WHERE student_id = %s AND password = %s AND uni_id = %s"
+        query = """
+    SELECT s.student_id, s.name, s.email, s.plan_id, s.dept_id, s.uni_id, d.dept_name 
+    FROM student s
+    LEFT JOIN department d ON s.dept_id = d.dept_id
+    WHERE s.student_id = %s AND s.password = %s AND s.uni_id = %s
+"""
         cursor.execute(query, (student_id, password, uni_id))
         student = cursor.fetchone()
         
@@ -108,7 +113,8 @@ def login_student_service(student_id, password, uni_id): # : تمرير uni_id
                     "id": student['student_id'],
                     "plan_id": student['plan_id'],
                     "dept_id": student['dept_id'],
-                    "uni_id": student['uni_id'] 
+                    "uni_id": student['uni_id'] ,
+                    "dept_name": student['dept_name']
                 }
             }
         return {"status": "error", "message": "الرقم الجامعي أو كلمة المرور غير صحيحة لهذه الجامعة"}

@@ -23,6 +23,7 @@ const StudentLogin = () => {
             });
         }
 
+
         const payload = {
             ...loginData,
             uni_id: selectedUniId
@@ -32,6 +33,18 @@ const StudentLogin = () => {
             const res = await api.loginStudent(payload); 
             
             if (res.data.status === 'success') {
+                const targetDeptId = localStorage.getItem('target_dept_id');
+                const userDeptId = res.data.user.dept_id;
+
+                if (targetDeptId && targetDeptId != userDeptId) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'بوابة خاطئة',
+                        text: 'عذراً، أنت تحاول الدخول من بوابة قسم لا تتبع له. يرجى العودة للرئيسية واختيار قسمك الصحيح.',
+                        confirmButtonColor: '#ef4444'
+                    });
+                    return; 
+                }
                 Swal.fire({ 
                     icon: 'success', 
                     title: 'تم تسجيل الدخول بنجاح', 
